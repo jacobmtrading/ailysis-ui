@@ -14,6 +14,9 @@ import {
   INDUSTRY,
 } from './data/portfolio'
 import { ORDERS } from './data/orders'
+import { POSITIONS } from './data/positions'
+
+const TOP_POSITIONS = [...POSITIONS].sort((a, b) => b.weight - a.weight).slice(0, 4)
 
 const fmtMoney2 = (n) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
@@ -26,6 +29,10 @@ const ORDER_DATES = {
   xom: 'Jun 21',
   vti: 'Jun 15',
   lly: 'Jun 9',
+  amd: 'Jul 4',
+  tsla: 'Jul 1',
+  googl: 'Jun 25',
+  asml: 'Jun 18',
 }
 // Map the perf periods that also live on the chip row.
 const PERIOD_FOR = { Day: '1D', Week: '1W', Month: '1M' }
@@ -149,7 +156,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* ---- Screen 2: order history + allocation ---- */}
+        {/* ---- Screen 2: order history only ---- */}
         <section className="page page-orders">
           <div className="tr-header">
             <div className="tr-title">Order history</div>
@@ -159,12 +166,48 @@ export default function App() {
             {ORDERS.map((o, i) => (
               <OrderRow key={o.id} order={o} i={i} onOpen={setActiveOrder} />
             ))}
+          </div>
 
-            <div className="alloc-heading">Allocation</div>
-            <div className="pies">
-              <PieChart title="Industry" data={INDUSTRY} onClick={() => setPositions('By industry')} />
-              <PieChart title="Asset class" data={ASSET_CLASS} onClick={() => setPositions('By asset class')} />
-            </div>
+          <div className="swipe-hint">
+            <span>Allocation</span>
+            <span className="chev">⌄</span>
+          </div>
+        </section>
+
+        {/* ---- Screen 3: allocation + biggest positions ---- */}
+        <section className="page page-alloc">
+          <div className="tr-header">
+            <div className="tr-title">Allocation</div>
+          </div>
+
+          <div className="pies">
+            <PieChart title="Industry" data={INDUSTRY} onClick={() => setPositions('By industry')} />
+            <PieChart title="Asset class" data={ASSET_CLASS} onClick={() => setPositions('By asset class')} />
+          </div>
+
+          <div className="top-head">
+            <span>Biggest positions</span>
+            <button className="top-seeall" onClick={() => setPositions('All holdings')}>
+              See all ›
+            </button>
+          </div>
+
+          <div className="top-list">
+            {TOP_POSITIONS.map((p, i) => {
+              const up = p.change >= 0
+              return (
+                <button className="top-row" key={i} onClick={() => setPositions('All holdings')}>
+                  <div className={`order-badge badge-${p.badge}`}>{p.ticker.slice(0, 4)}</div>
+                  <div className="top-main">
+                    <div className="top-name">{p.name}</div>
+                    <div className="top-sub">{p.weight.toFixed(1)}% of portfolio</div>
+                  </div>
+                  <div className={`top-change ${up ? 'up' : 'down'}`}>
+                    {up ? '▲' : '▼'} {fmtPct(p.change)}
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </section>
       </div>
