@@ -321,12 +321,8 @@ body {
 /* ---------------- Orders / holdings list ---------------- */
 .order-list {
   flex: 1 1 auto;
-  overflow-y: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 8px;
+  overflow: hidden;
 }
-.order-list::-webkit-scrollbar { display: none; }
 
 .order-row {
   display: flex;
@@ -336,7 +332,7 @@ body {
   text-align: left;
   background: none;
   border: none;
-  padding: 15px 2px;
+  padding: 12px 2px;
   color: var(--text);
   font-family: inherit;
   cursor: pointer;
@@ -345,9 +341,9 @@ body {
 .order-row:active { opacity: 0.5; }
 .order-badge {
   flex: 0 0 auto;
-  width: 46px;
-  height: 46px;
-  border-radius: 13px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
   font-size: 11px;
@@ -423,6 +419,10 @@ body {
   padding: 10px 0 8px;
 }
 .pie-block {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   text-align: left;
   background: #fafafa;
   border: 1px solid var(--hair);
@@ -516,9 +516,10 @@ body {
   margin-bottom: 8px;
 }
 .pie-svg {
-  width: 100%;
-  height: auto;
-  max-height: 96px;
+  display: block;
+  width: 108px;
+  height: 108px;
+  margin: 2px auto 0;
 }
 .pie-center-top {
   fill: var(--text);
@@ -716,6 +717,7 @@ body {
 .wa-chat {
   flex: 1 1 auto;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 12px 8px 16px;
   -webkit-overflow-scrolling: touch;
   background-color: var(--wa-bg);
@@ -742,6 +744,7 @@ body {
   align-items: flex-end;
   gap: 6px;
   max-width: 86%;
+  min-width: 0;
 }
 .wa-avatar {
   flex: 0 0 auto;
@@ -757,12 +760,15 @@ body {
 }
 .wa-bubble {
   position: relative;
+  min-width: 0;
+  max-width: 100%;
   padding: 6px 9px 18px;
   border-radius: 8px;
   font-size: 14.5px;
   line-height: 1.35;
   box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.25);
   word-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 .wa-in {
   background: var(--wa-in);
