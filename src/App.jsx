@@ -16,7 +16,7 @@ import {
 import { ORDERS } from './data/orders'
 import { POSITIONS } from './data/positions'
 
-const TOP_POSITIONS = [...POSITIONS].sort((a, b) => b.weight - a.weight).slice(0, 4)
+const TOP_POSITIONS = [...POSITIONS].sort((a, b) => b.weight - a.weight).slice(0, 3)
 
 const fmtMoney2 = (n) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })

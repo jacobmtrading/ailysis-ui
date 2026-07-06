@@ -468,11 +468,8 @@ body {
 }
 .top-list {
   flex: 1 1 auto;
-  overflow-y: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
 }
-.top-list::-webkit-scrollbar { display: none; }
 .top-row {
   display: flex;
   align-items: center;
