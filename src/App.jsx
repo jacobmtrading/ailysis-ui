@@ -10,14 +10,11 @@ import {
   PERIODS,
   PERIOD_CHANGE,
   PERIOD_LABEL,
-  PORTFOLIO_VALUE,
   ASSET_CLASS,
   INDUSTRY,
 } from './data/portfolio'
 import { ORDERS } from './data/orders'
 
-const fmtMoney = (n) =>
-  n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 const fmtMoney2 = (n) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
 const fmtPct = (n) => `${Math.abs(n).toFixed(2)}%`
@@ -105,17 +102,17 @@ export default function App() {
           <MarketPill />
 
           <div className="tr-header">
-            <div className="tr-title">Portfolio</div>
-            <div className="tr-avatar">J</div>
+            <div className="tr-titlewrap">
+              <span className="tr-title">Portfolio</span>
+              <span className="tr-by">by Ailysis</span>
+            </div>
           </div>
 
           <div className="tr-valblock">
-            <div className="tr-brokerage">Brokerage</div>
-            <div className="portfolio-value">{fmtMoney(PORTFOLIO_VALUE)}</div>
-            <div className={`tr-change ${changeUp ? 'up' : 'down'}`}>
-              {changeUp ? '▲' : '▼'} {fmtMoney((PORTFOLIO_VALUE * change) / 100)} ({fmtPct(change)}) ·{' '}
-              {PERIOD_LABEL[period]}
+            <div className={`portfolio-perf ${changeUp ? 'up' : 'down'}`}>
+              {changeUp ? '▲' : '▼'} {fmtPct(change)}
             </div>
+            <div className="tr-change-sub">{PERIOD_LABEL[period]}</div>
           </div>
 
           <div className="tr-periods">
@@ -156,7 +153,6 @@ export default function App() {
         <section className="page page-orders">
           <div className="tr-header">
             <div className="tr-title">Order history</div>
-            <div className="tr-avatar">J</div>
           </div>
 
           <div className="order-list">
@@ -171,24 +167,6 @@ export default function App() {
             </div>
           </div>
         </section>
-      </div>
-
-      {/* persistent bottom bar (Trade Republic style) */}
-      <div className="tr-bottombar">
-        <div className="tr-pill">
-          <span>Search</span>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20l-3.2-3.2" strokeLinecap="round" />
-          </svg>
-        </div>
-        <div className="tr-pill">
-          <span>Transfer</span>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M8 4v16M8 20l-3-3M8 4l3 3" />
-            <path d="M16 20V4M16 4l3 3M16 20l-3-3" />
-          </svg>
-        </div>
       </div>
 
       <PositionsOverlay open={!!positions} title={positions} onClose={() => setPositions(null)} />

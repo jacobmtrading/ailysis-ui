@@ -145,7 +145,7 @@ body {
   scroll-snap-stop: always;
   display: flex;
   flex-direction: column;
-  padding: calc(env(safe-area-inset-top) + 16px) 22px calc(env(safe-area-inset-bottom) + 92px);
+  padding: calc(env(safe-area-inset-top) + 16px) 22px calc(env(safe-area-inset-bottom) + 20px);
 }
 
 /* ---------------- Market pill (top) ---------------- */
@@ -181,11 +181,21 @@ body {
   justify-content: space-between;
   padding: 12px 0 6px;
 }
+.tr-titlewrap {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
 .tr-title {
   font-size: 30px;
   font-weight: 800;
   letter-spacing: -0.8px;
   color: var(--text);
+}
+.tr-by {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted);
 }
 .tr-avatar {
   width: 44px;
@@ -201,25 +211,20 @@ body {
 
 /* ---------------- Value block ---------------- */
 .tr-valblock {
-  padding: 14px 0 2px;
+  padding: 18px 0 2px;
 }
-.tr-brokerage {
-  color: var(--muted);
+.portfolio-perf {
+  font-size: clamp(46px, 15vw, 62px);
+  font-weight: 800;
+  letter-spacing: -1.6px;
+  line-height: 1.02;
+  font-variant-numeric: tabular-nums;
+}
+.tr-change-sub {
   font-size: 16px;
   font-weight: 500;
-  margin-bottom: 4px;
-}
-.portfolio-value {
-  font-size: clamp(36px, 11vw, 46px);
-  font-weight: 800;
-  letter-spacing: -1.4px;
-  font-variant-numeric: tabular-nums;
-}
-.tr-change {
-  font-size: 15px;
-  font-weight: 600;
-  margin-top: 6px;
-  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  margin-top: 8px;
 }
 
 /* ---------------- Period chips ---------------- */
