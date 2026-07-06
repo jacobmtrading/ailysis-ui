@@ -110,7 +110,7 @@ export default function App() {
 
           <div className="tr-valblock">
             <div className={`portfolio-perf ${changeUp ? 'up' : 'down'}`}>
-              {changeUp ? '▲' : '▼'} {fmtPct(change)}
+              {changeUp ? '+' : '−'}{fmtPct(change)}
             </div>
             <div className="tr-change-sub">{PERIOD_LABEL[period]}</div>
           </div>
