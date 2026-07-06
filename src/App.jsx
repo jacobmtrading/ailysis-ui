@@ -163,7 +163,7 @@ export default function App() {
           </div>
 
           <div className="order-list">
-            {ORDERS.slice(0, 9).map((o, i) => (
+            {ORDERS.slice(0, 8).map((o, i) => (
               <OrderRow key={o.id} order={o} i={i} onOpen={setActiveOrder} />
             ))}
           </div>
