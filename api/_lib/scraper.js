@@ -6,7 +6,7 @@
 //      ETF-vs-stock target is actually reachable.
 // The chosen candidate is enriched with Google News headlines so the board
 // has real context to argue about.
-import { UNIVERSE, byTicker, WATCHLIST, CORE_ETFS } from './universe.js'
+import { UNIVERSE, byTicker, WATCHLIST, CORE_ETFS, SECTOR_ETF } from './universe.js'
 import { fetchQuotes } from './market.js'
 import { classSplit } from './state.js'
 
@@ -111,7 +111,15 @@ export async function findCandidate(state) {
   }
 
   for (const c of capitol) bump(c.ticker, 2, `Capitol Trades: ${c.who} disclosed a buy`)
-  for (const m of movers) bump(m.ticker, 1, `Price move: ${m.dayChgPct > 0 ? '+' : ''}${m.dayChgPct}% today`)
+  for (const m of movers) {
+    bump(m.ticker, 1, `Price move: ${m.dayChgPct > 0 ? '+' : ''}${m.dayChgPct}% today`)
+    // News/momentum-driven ETF path: a hot sector surfaces its sector ETF too.
+    if (m.dayChgPct > 0) {
+      const stock = byTicker[m.ticker]
+      const etfT = stock && SECTOR_ETF[stock.ind]
+      if (etfT) bump(etfT, 1, `Sector momentum: ${stock.ind} running — ${m.ticker} +${m.dayChgPct}%`)
+    }
+  }
 
   const ranked = Object.entries(scores).sort((a, b) => b[1].score - a[1].score)
   const topStock = ranked.length

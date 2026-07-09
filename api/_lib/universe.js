@@ -61,22 +61,23 @@ export const UNIVERSE = [
   { t: 'NFLX', n: 'Netflix', ind: 'Communication', type: 'stock' },
   { t: 'T', n: 'AT&T', ind: 'Communication', type: 'stock' },
 
-  // ---- ETFs ----
-  { t: 'VOO', n: 'Vanguard S&P 500', ind: 'Broad Market', type: 'etf' },
-  { t: 'VTI', n: 'Vanguard Total Market', ind: 'Broad Market', type: 'etf' },
-  { t: 'QQQ', n: 'Invesco Nasdaq 100', ind: 'Technology', type: 'etf' },
-  { t: 'IWM', n: 'iShares Russell 2000', ind: 'Broad Market', type: 'etf' },
-  { t: 'VEA', n: 'Vanguard Developed Markets', ind: 'International', type: 'etf' },
-  { t: 'VWO', n: 'Vanguard Emerging Markets', ind: 'International', type: 'etf' },
-  { t: 'VGK', n: 'Vanguard Europe', ind: 'International', type: 'etf' },
-  { t: 'SCHD', n: 'Schwab US Dividend', ind: 'Dividend', type: 'etf' },
-  { t: 'VIG', n: 'Vanguard Dividend Growth', ind: 'Dividend', type: 'etf' },
-  { t: 'XLE', n: 'Energy Select SPDR', ind: 'Energy', type: 'etf' },
-  { t: 'XLV', n: 'Health Care Select SPDR', ind: 'Healthcare', type: 'etf' },
-  { t: 'XLF', n: 'Financial Select SPDR', ind: 'Financials', type: 'etf' },
-  { t: 'ITA', n: 'iShares US Aerospace & Defense', ind: 'Aerospace & Defence', type: 'etf' },
-  { t: 'SMH', n: 'VanEck Semiconductor', ind: 'Technology', type: 'etf' },
-  { t: 'GLD', n: 'SPDR Gold Shares', ind: 'Commodities', type: 'etf' },
+  // ---- ETFs ---- (top5 = approx % of fund in its 5 largest holdings, for
+  // Emilia's concentration check; >=30% is "too concentrated" in her book)
+  { t: 'VOO', n: 'Vanguard S&P 500', ind: 'Broad Market', type: 'etf', top5: 27 },
+  { t: 'VTI', n: 'Vanguard Total Market', ind: 'Broad Market', type: 'etf', top5: 24 },
+  { t: 'QQQ', n: 'Invesco Nasdaq 100', ind: 'Technology', type: 'etf', top5: 31 },
+  { t: 'IWM', n: 'iShares Russell 2000', ind: 'Broad Market', type: 'etf', top5: 3 },
+  { t: 'VEA', n: 'Vanguard Developed Markets', ind: 'International', type: 'etf', top5: 11 },
+  { t: 'VWO', n: 'Vanguard Emerging Markets', ind: 'International', type: 'etf', top5: 18 },
+  { t: 'VGK', n: 'Vanguard Europe', ind: 'International', type: 'etf', top5: 13 },
+  { t: 'SCHD', n: 'Schwab US Dividend', ind: 'Dividend', type: 'etf', top5: 25 },
+  { t: 'VIG', n: 'Vanguard Dividend Growth', ind: 'Dividend', type: 'etf', top5: 26 },
+  { t: 'XLE', n: 'Energy Select SPDR', ind: 'Energy', type: 'etf', top5: 55 },
+  { t: 'XLV', n: 'Health Care Select SPDR', ind: 'Healthcare', type: 'etf', top5: 42 },
+  { t: 'XLF', n: 'Financial Select SPDR', ind: 'Financials', type: 'etf', top5: 36 },
+  { t: 'ITA', n: 'iShares US Aerospace & Defense', ind: 'Aerospace & Defence', type: 'etf', top5: 55 },
+  { t: 'SMH', n: 'VanEck Semiconductor', ind: 'Technology', type: 'etf', top5: 45 },
+  { t: 'GLD', n: 'SPDR Gold Shares', ind: 'Commodities', type: 'etf', top5: 100 },
 ]
 
 export const byTicker = Object.fromEntries(UNIVERSE.map((e) => [e.t, e]))
@@ -90,3 +91,13 @@ export const WATCHLIST = [
 
 // ETFs Emilia can reach for when the book drifts too stock-heavy.
 export const CORE_ETFS = ['VOO', 'VTI', 'VEA', 'SCHD']
+
+// Industry -> representative sector ETF, for the news/momentum-driven path:
+// when stocks in a sector are running, the sector ETF rides the same theme.
+export const SECTOR_ETF = {
+  Technology: 'QQQ',
+  Energy: 'XLE',
+  Healthcare: 'XLV',
+  Financials: 'XLF',
+  'Aerospace & Defence': 'ITA',
+}
