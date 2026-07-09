@@ -388,6 +388,30 @@ body {
   padding: 2px 6px;
   border-radius: 5px;
 }
+.sell-tag {
+  background: rgba(255, 59, 48, 0.12);
+  color: #d0342c;
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 5px;
+}
+.pass-tag {
+  background: var(--chip);
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 5px;
+}
+.empty-note {
+  color: var(--muted);
+  font-size: 15px;
+  padding: 28px 4px;
+  text-align: center;
+}
 .order-nums {
   flex: 0 0 auto;
   text-align: right;

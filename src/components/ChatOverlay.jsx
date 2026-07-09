@@ -40,14 +40,17 @@ function Poll({ msg }) {
       </div>
 
       <div className="wa-poll-voters">
-        {msg.votes.map((v, i) => (
-          <span key={i} className="wa-voter">
-            <span className="wa-voter-dot" style={{ background: AGENTS[v.agent].avatar }}>
-              {initials(AGENTS[v.agent].name)}
+        {msg.votes.map((v, i) => {
+          const voter = AGENTS[v.agent] || AGENTS.mod
+          return (
+            <span key={i} className="wa-voter">
+              <span className="wa-voter-dot" style={{ background: voter.avatar }}>
+                {initials(voter.name)}
+              </span>
+              {v.vote === 'yes' ? '✅' : '❌'}
             </span>
-            {v.vote === 'yes' ? '✅' : '❌'}
-          </span>
-        ))}
+          )
+        })}
       </div>
       <span className="wa-time">{msg.time}</span>
     </div>
@@ -55,9 +58,9 @@ function Poll({ msg }) {
 }
 
 function Bubble({ msg, chat }) {
-  const agent = AGENTS[msg.from]
+  const agent = AGENTS[msg.from] || AGENTS.mod
   const replied = msg.replyTo != null ? chat[msg.replyTo] : null
-  const repliedAgent = replied ? AGENTS[replied.from] : null
+  const repliedAgent = replied ? AGENTS[replied.from] || AGENTS.mod : null
 
   return (
     <div className="wa-row">
@@ -95,8 +98,8 @@ function Bubble({ msg, chat }) {
 
 export default function ChatOverlay({ order, onClose }) {
   if (!order) return null
-  const participants = Object.values(AGENTS)
-    .map((a) => a.name.split(' ')[0])
+  const participants = ['max', 'valeria', 'kian', 'rayan', 'emilia', 'mod']
+    .map((k) => AGENTS[k].name.split(' ')[0])
     .join(', ')
 
   return (

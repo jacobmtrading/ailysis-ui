@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react'
 
-// NYSE regular hours: 09:30–16:00 America/New_York, Mon–Fri.
-// (Holidays are ignored — this is a demo UI.)
-const OPEN_MIN = 9 * 60 + 30
-const CLOSE_MIN = 16 * 60
+// Combined market status: open when Xetra (9:00–17:30 Berlin) OR NYSE
+// (9:30–16:00 New York) is open, Mon–Fri. Holidays ignored (demo-grade).
+// On weekdays the two sessions overlap, so the combined session runs from
+// Xetra open until NYSE close.
 
-function etParts(date) {
+const MARKETS = {
+  xetra: { tz: 'Europe/Berlin', open: 9 * 60, close: 17 * 60 + 30, name: 'Xetra' },
+  nyse: { tz: 'America/New_York', open: 9 * 60 + 30, close: 16 * 60, name: 'NYSE' },
+}
+
+function tzParts(tz, date) {
   const dtf = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: tz,
     hour12: false,
     year: 'numeric',
     month: '2-digit',
@@ -18,58 +23,56 @@ function etParts(date) {
   })
   const p = {}
   for (const { type, value } of dtf.formatToParts(date)) p[type] = value
-  return {
-    y: +p.year,
-    mo: +p.month,
-    d: +p.day,
-    h: p.hour === '24' ? 0 : +p.hour,
-    mi: +p.minute,
-    s: +p.second,
-  }
+  return { y: +p.year, mo: +p.month, d: +p.day, h: p.hour === '24' ? 0 : +p.hour, mi: +p.minute, s: +p.second }
 }
 
-// Current ET UTC offset in ms (handles DST).
-function etOffsetMs(date) {
-  const p = etParts(date)
-  const asUTC = Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s)
-  return asUTC - date.getTime()
+function tzOffsetMs(tz, date) {
+  const p = tzParts(tz, date)
+  return Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s) - date.getTime()
 }
 
-// Convert an ET wall-clock moment to a real epoch timestamp.
-function etWallToEpoch(y, mo, d, h, mi, ref) {
-  const asUTC = Date.UTC(y, mo - 1, d, h, mi, 0)
-  return asUTC - etOffsetMs(ref)
+function wallToEpoch(tz, y, mo, d, h, mi, ref) {
+  return Date.UTC(y, mo - 1, d, h, mi, 0) - tzOffsetMs(tz, ref)
 }
 
-function computeStatus(now) {
-  const p = etParts(now)
-  const dow = new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay() // 0 Sun .. 6 Sat
+function marketNow(mkt, now) {
+  const p = tzParts(mkt.tz, now)
+  const dow = new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay()
   const min = p.h * 60 + p.mi
   const isWeekday = dow >= 1 && dow <= 5
-  const isOpen = isWeekday && min >= OPEN_MIN && min < CLOSE_MIN
+  const open = isWeekday && min >= mkt.open && min < mkt.close
+  return { p, dow, min, open }
+}
 
-  if (isOpen) {
-    const target = etWallToEpoch(p.y, p.mo, p.d, 16, 0, now)
-    return { open: true, target }
-  }
-
-  // Find next open: today (if before open on a weekday) else scan forward.
+function nextOpenEpoch(mkt, now) {
+  const { p, min } = marketNow(mkt, now)
   for (let add = 0; add <= 7; add++) {
     const cand = new Date(Date.UTC(p.y, p.mo - 1, p.d + add))
     const cdow = cand.getUTCDay()
     if (cdow < 1 || cdow > 5) continue
-    if (add === 0 && min >= OPEN_MIN) continue // already past open today
-    const target = etWallToEpoch(
-      cand.getUTCFullYear(),
-      cand.getUTCMonth() + 1,
-      cand.getUTCDate(),
-      9,
-      30,
-      now
-    )
-    return { open: false, target }
+    if (add === 0 && min >= mkt.open) continue
+    return wallToEpoch(mkt.tz, cand.getUTCFullYear(), cand.getUTCMonth() + 1, cand.getUTCDate(), Math.floor(mkt.open / 60), mkt.open % 60, now)
   }
-  return { open: false, target: now.getTime() }
+  return now.getTime()
+}
+
+function closeEpochToday(mkt, now) {
+  const { p } = marketNow(mkt, now)
+  return wallToEpoch(mkt.tz, p.y, p.mo, p.d, Math.floor(mkt.close / 60), mkt.close % 60, now)
+}
+
+function computeStatus(now) {
+  const xetra = marketNow(MARKETS.xetra, now)
+  const nyse = marketNow(MARKETS.nyse, now)
+
+  if (xetra.open || nyse.open) {
+    // Combined session ends at NYSE close (overlaps with Xetra on weekdays).
+    const target = nyse.open || xetra.open ? Math.max(closeEpochToday(MARKETS.nyse, now), closeEpochToday(MARKETS.xetra, now)) : now.getTime()
+    const label2 = xetra.open && nyse.open ? 'Xetra + NYSE' : xetra.open ? 'Xetra' : 'NYSE'
+    return { open: true, target, label2 }
+  }
+  const target = Math.min(nextOpenEpoch(MARKETS.xetra, now), nextOpenEpoch(MARKETS.nyse, now))
+  return { open: false, target, label2: '' }
 }
 
 function fmtCountdown(ms) {

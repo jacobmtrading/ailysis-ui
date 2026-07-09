@@ -7,7 +7,7 @@ function arc(cx, cy, r, startAngle, endAngle) {
   return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`
 }
 
-export default function PieChart({ title, data, onClick }) {
+export default function PieChart({ title, sub, data, onClick }) {
   const total = data.reduce((s, d) => s + d.value, 0)
   const cx = 100
   const cy = 100
@@ -41,7 +41,7 @@ export default function PieChart({ title, data, onClick }) {
           {data.length}
         </text>
         <text x="100" y="116" textAnchor="middle" className="pie-center-sub">
-          {data.length > 4 ? 'sectors' : 'classes'}
+          {sub || (data.length > 4 ? 'sectors' : 'classes')}
         </text>
       </svg>
       <div className="pie-legend">
