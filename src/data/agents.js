@@ -1,6 +1,4 @@
-// The live board (backend keys): max, valeria, kian, rayan, emilia, mod.
-// The old demo keys (vera, tess, quinn, rita) are kept so the bundled demo
-// chats keep rendering until the backend takes over.
+// The board — keys match what the backend emits.
 export const AGENTS = {
   max: { name: 'Max Momentum', strat: 'Momentum & News', color: '#2b9bd8', avatar: '#2b9bd8' },
   valeria: { name: 'Valeria Value', strat: 'Value / Fundamentals', color: '#e8734a', avatar: '#e8734a' },
@@ -8,10 +6,4 @@ export const AGENTS = {
   rayan: { name: 'Rayan Risk', strat: 'Strategy & Risk', color: '#d84a6b', avatar: '#d84a6b' },
   emilia: { name: 'Emilia ETF', strat: 'Asset Allocation', color: '#9c5cff', avatar: '#9c5cff' },
   mod: { name: 'The Moderator', strat: 'Board Chair', color: '#128c7e', avatar: '#128c7e' },
-
-  // demo-only aliases
-  vera: { name: 'Valeria Value', strat: 'Value / Fundamentals', color: '#e8734a', avatar: '#e8734a' },
-  quinn: { name: 'Kian Quant', strat: 'Charts / Quant', color: '#1fae7a', avatar: '#1fae7a' },
-  rita: { name: 'Rayan Risk', strat: 'Strategy & Risk', color: '#d84a6b', avatar: '#d84a6b' },
-  tess: { name: 'Emilia ETF', strat: 'Asset Allocation', color: '#9c5cff', avatar: '#9c5cff' },
 }

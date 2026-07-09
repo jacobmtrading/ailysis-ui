@@ -6,26 +6,26 @@ import ChatOverlay from './components/ChatOverlay'
 import PositionsOverlay from './components/PositionsOverlay'
 import { useMarketStatus } from './useMarketStatus'
 import { fetchLive } from './api'
-import { SERIES_BY_PERIOD, PERIODS, PERIOD_CHANGE, PERIOD_LABEL, ASSET_CLASS, INDUSTRY } from './data/portfolio'
-import { ORDERS } from './data/orders'
-import { POSITIONS } from './data/positions'
+import { PERIODS, PERIOD_LABEL } from './data/portfolio'
 
 const fmtMoney2 = (n) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
 const fmtPct = (n) => `${Math.abs(n).toFixed(2)}%`
 
-const DEMO_DATES = { nvda: 'Jul 6', pltr: 'Jul 2', cost: 'Jun 28', xom: 'Jun 21', vti: 'Jun 15', lly: 'Jun 9', amd: 'Jul 4', tsla: 'Jul 1', googl: 'Jun 25', asml: 'Jun 18' }
 const PERIOD_FOR = { Day: '1D', Week: '1W', Month: '1M' }
 
-// Demo fallback shaped exactly like the live payload.
-const DEMO = {
+// Clean empty state — shown while loading and until the board makes its
+// first trade. No fake data.
+const FLAT = [100000, 100000]
+const CASH_PIE = [{ label: 'Cash', value: 100, color: '#c4c4c8' }]
+const EMPTY = {
   live: false,
-  seriesByPeriod: SERIES_BY_PERIOD,
-  periodChange: PERIOD_CHANGE,
-  orders: ORDERS.map((o) => ({ ...o, side: 'buy', timeLabel: DEMO_DATES[o.id] || '' })),
-  positions: [...POSITIONS].sort((a, b) => b.weight - a.weight).map((p) => ({ ...p })),
-  industryPie: INDUSTRY,
-  assetPie: ASSET_CLASS,
+  seriesByPeriod: { '1D': FLAT, '1W': FLAT, '1M': FLAT, '1Y': FLAT, Max: FLAT },
+  periodChange: { '1D': 0, '1W': 0, '1M': 0, '1Y': 0, Max: 0 },
+  orders: [],
+  positions: [],
+  industryPie: CASH_PIE,
+  assetPie: CASH_PIE,
 }
 
 function MarketPill() {
@@ -107,7 +107,7 @@ export default function App() {
     }
   }, [])
 
-  const data = live || DEMO
+  const data = live || EMPTY
   const change = data.periodChange[period] ?? 0
   const changeUp = change >= 0
   const chartData = data.seriesByPeriod[period] || [100, 100]
@@ -125,7 +125,7 @@ export default function App() {
           <div className="tr-header">
             <div className="tr-titlewrap">
               <span className="tr-title">Portfolio</span>
-              <span className="tr-by">by Ailysis{data.live ? '' : ' · demo'}</span>
+              <span className="tr-by">by Ailysis</span>
             </div>
           </div>
 
