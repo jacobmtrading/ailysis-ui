@@ -1,10 +1,14 @@
 // Idea scraper — 100% code, zero LLM tokens. Signals:
-//   1. Capitol Trades: recent congressional BUY disclosures
-//   2. Big daily movers on the watchlist (|day change| >= 3%)
+//   1. Capitol Trades: recent congressional BUY disclosures (stocks)
+//   2. Big daily movers on the watchlist (|day change| >= 3%) (stocks)
+//   3. Allocation rebalance: when the book lacks ETF ballast or drifts
+//      stock-heavy, propose a core ETF (Emilia's feeding point) so the 50/50
+//      ETF-vs-stock target is actually reachable.
 // The chosen candidate is enriched with Google News headlines so the board
 // has real context to argue about.
-import { UNIVERSE, byTicker, WATCHLIST } from './universe.js'
+import { UNIVERSE, byTicker, WATCHLIST, CORE_ETFS } from './universe.js'
 import { fetchQuotes } from './market.js'
+import { classSplit } from './state.js'
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (compatible; ailysis-paper-bot/1.0)' }
 
@@ -54,6 +58,42 @@ export async function newsHeadlines(name, ticker, limit = 4) {
   }
 }
 
+// Emilia's feeding point: if the book has no ETF ballast or has drifted
+// stock-heavy, propose a core ETF so the 50/50 target is actually reachable.
+// This is the ONE candidate allowed to be already-held (we top it up).
+export function etfRebalanceCandidate(state) {
+  const hasStocks = state.positions.some((p) => p.type === 'stock')
+  if (!hasStocks) return null // nothing to balance against yet
+
+  const split = classSplit(state)
+  const invested = split.stocksPct + split.etfsPct
+  const stockShare = invested > 0 ? (split.stocksPct / invested) * 100 : 100
+  const hasEtfs = state.positions.some((p) => p.type === 'etf')
+  if (hasEtfs && stockShare <= 55) return null // balanced enough
+
+  // Prefer an un-held core ETF not on cooldown; otherwise top up the smallest
+  // ETF we hold. Returns null if there's nothing sensible to propose (so a run
+  // of "pass" votes can't loop on the same ticker every scrape).
+  const now = Date.now()
+  const cooled = (t) => (state.cooldowns[t] || 0) > now
+  const heldTickers = new Set(state.positions.map((p) => p.ticker))
+  let pick = CORE_ETFS.find((t) => !heldTickers.has(t) && !cooled(t))
+  if (!pick) {
+    const etfPos = state.positions
+      .filter((p) => p.type === 'etf')
+      .sort((a, b) => a.qty * a.avgPrice - b.qty * b.avgPrice)
+    pick = etfPos.length ? etfPos[0].ticker : null
+  }
+  if (!pick) return null
+
+  const imbalance = Math.max(0, stockShare - 50)
+  const score = (hasEtfs ? 2 : 3) + Math.floor(imbalance / 4)
+  const signal = hasEtfs
+    ? `Emilia's rebalance: book is ${stockShare.toFixed(0)}% stocks vs ETFs — proposing ${pick} to move toward 50/50`
+    : `Emilia's allocation: no ETF ballast yet — proposing core ETF ${pick} to build the 50/50 base`
+  return { entry: byTicker[pick], score, signal }
+}
+
 // Pick the single best candidate not already held / recently discussed.
 export async function findCandidate(state) {
   const held = new Set(state.positions.map((p) => p.ticker))
@@ -74,10 +114,23 @@ export async function findCandidate(state) {
   for (const m of movers) bump(m.ticker, 1, `Price move: ${m.dayChgPct > 0 ? '+' : ''}${m.dayChgPct}% today`)
 
   const ranked = Object.entries(scores).sort((a, b) => b[1].score - a[1].score)
-  if (!ranked.length) return null
+  const topStock = ranked.length
+    ? { entry: byTicker[ranked[0][0]], signals: ranked[0][1].signals, score: ranked[0][1].score }
+    : null
 
-  const [ticker, info] = ranked[0]
-  const entry = byTicker[ticker]
-  const headlines = await newsHeadlines(entry.n, ticker)
-  return { ...entry, signals: info.signals, score: info.score, headlines }
+  // ETF rebalancing competes with the top stock; it wins ties so the book
+  // actually moves back toward balance when it's drifting.
+  const etf = etfRebalanceCandidate(state)
+  let chosen = null
+  if (etf && (!topStock || etf.score >= topStock.score)) {
+    chosen = { entry: etf.entry, signals: [etf.signal], score: etf.score }
+  } else if (topStock) {
+    chosen = topStock
+  } else if (etf) {
+    chosen = { entry: etf.entry, signals: [etf.signal], score: etf.score }
+  }
+  if (!chosen) return null
+
+  const headlines = await newsHeadlines(chosen.entry.n, chosen.entry.t)
+  return { ...chosen.entry, signals: chosen.signals, score: chosen.score, headlines }
 }

@@ -5,6 +5,10 @@ import { portfolioValue, classSplit, industryWeights } from './state.js'
 export const INDUSTRY_CAP_PCT = 30 // Rayan's rule
 export const ETF_BALANCE_TOLERANCE = 10 // Emilia's rule: 50/50 ±10
 
+// Diversified ETF "industries" don't count as concentration risk, so they're
+// exempt from the per-industry cap (a broad-market ETF isn't a sector bet).
+const BROAD_INDUSTRIES = new Set(['Broad Market', 'International', 'Dividend', 'Commodities'])
+
 function chatTime(offsetMin = 0) {
   const d = new Date(Date.now() - offsetMin * 60000)
   return new Intl.DateTimeFormat('de-DE', {
@@ -41,12 +45,15 @@ export function applyGuardrails(state, entry, proposedSizePct) {
   let sizePct = proposedSizePct
   const value = portfolioValue(state)
 
-  // Rayan: industry concentration cap (stocks and sector ETFs alike).
-  const weights = industryWeights(state)
-  const current = weights[entry.ind] || 0
-  if (current + sizePct > INDUSTRY_CAP_PCT) {
-    sizePct = Math.max(0, +(INDUSTRY_CAP_PCT - current).toFixed(1))
-    notes.push(`Rayan's cap: ${entry.ind} would exceed ${INDUSTRY_CAP_PCT}% — size cut to ${sizePct}%`)
+  // Rayan: industry concentration cap (single stocks and sector ETFs).
+  // Broad, diversified ETFs are exempt — they aren't a concentrated bet.
+  if (!BROAD_INDUSTRIES.has(entry.ind)) {
+    const weights = industryWeights(state)
+    const current = weights[entry.ind] || 0
+    if (current + sizePct > INDUSTRY_CAP_PCT) {
+      sizePct = Math.max(0, +(INDUSTRY_CAP_PCT - current).toFixed(1))
+      notes.push(`Rayan's cap: ${entry.ind} would exceed ${INDUSTRY_CAP_PCT}% — size cut to ${sizePct}%`)
+    }
   }
 
   // Emilia: keep stocks vs ETFs near 50/50 (of invested capital).
