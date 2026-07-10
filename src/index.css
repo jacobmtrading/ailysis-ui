@@ -749,8 +749,8 @@ body {
   top: 0;
   left: 0;
   right: 0;
+  height: 100vh;
   height: 100svh;
-  height: 100dvh;
   z-index: 220;
   max-width: 480px;
   margin: 0 auto;
@@ -798,7 +798,7 @@ body {
   scroll-snap-align: center;
   display: grid;
   place-items: center;
-  padding: calc(env(safe-area-inset-top) + 44px) 18px 132px;
+  padding: calc(env(safe-area-inset-top) + 50px) 18px 10px;
 }
 .tut-slide img {
   max-width: 100%;
@@ -808,28 +808,23 @@ body {
   display: block;
 }
 .tut-dots {
-  position: absolute;
-  bottom: 26px;
-  left: 50%;
-  transform: translateX(-50%);
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
+  padding: 14px 0 calc(env(safe-area-inset-bottom) + 18px);
+  background: #fff;
 }
 .tut-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(0, 0, 0, 0.2);
   transition: background 0.2s ease, transform 0.2s ease;
 }
 .tut-dot.active {
-  background: #fff;
+  background: #111;
   transform: scale(1.25);
 }
 
