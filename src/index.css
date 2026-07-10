@@ -750,7 +750,7 @@ body {
   z-index: 220;
   max-width: 480px;
   margin: 0 auto;
-  background: #000;
+  background: #fff;
   display: flex;
   flex-direction: column;
   animation: fadeIn 0.2s ease;
