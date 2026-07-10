@@ -56,7 +56,7 @@ export function isAdmin(user) {
 }
 
 export function adminUsername() {
-  return (process.env.ADMIN_USERNAME || '').toLowerCase()
+  return (process.env.ADMIN_USERNAME || '').trim().toLowerCase()
 }
 
 // ---- sessions ----
