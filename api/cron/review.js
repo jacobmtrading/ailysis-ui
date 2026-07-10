@@ -1,7 +1,9 @@
-// GET /api/cron/review?token=SECRET — once per trading day (one DeepSeek call).
-// The board reviews all holdings and may sell up to two positions.
+// GET /api/cron/review?token=SECRET — once per trading day (one DeepSeek call),
+// intended to run ~10 min BEFORE the US close (~21:50 Berlin) so the board can
+// make last-minute sell adjustments while the exchange is still open. Refreshes
+// prices first so the review sees an accurate end-of-day P/L.
 import { loadState, saveState, portfolioValue, classSplit, industryWeights } from '../_lib/state.js'
-import { anyMarketOpen, berlinDay } from '../_lib/market.js'
+import { berlinDay, fetchQuotes } from '../_lib/market.js'
 import { runReview } from '../_lib/board.js'
 import { assembleChat, executeSell } from '../_lib/portfolio.js'
 import { authorized, json } from '../_lib/http.js'
@@ -9,7 +11,6 @@ import { authorized, json } from '../_lib/http.js'
 export default async function handler(req, res) {
   if (!authorized(req)) return json(res, 401, { error: 'unauthorized' })
   const force = req.query?.force === '1'
-  if (!anyMarketOpen() && !force) return json(res, 200, { skipped: 'markets closed' })
 
   try {
     const state = await loadState()
@@ -17,6 +18,11 @@ export default async function handler(req, res) {
     state.daily[day] = state.daily[day] || { boards: 0, reviewed: false }
     if (state.daily[day].reviewed && !force) return json(res, 200, { skipped: 'already reviewed today' })
     if (!state.positions.length) return json(res, 200, { skipped: 'no positions to review' })
+
+    // End-of-day price refresh so the board reviews accurate P/L.
+    const tickers = state.positions.map((p) => p.ticker)
+    const quotes = await fetchQuotes(tickers)
+    for (const [t, q] of Object.entries(quotes)) state.lastPrices[t] = q.price
 
     const positions = state.positions.map((p) => {
       const price = state.lastPrices[p.ticker] || p.avgPrice
