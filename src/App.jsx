@@ -6,7 +6,6 @@ import ChatOverlay from './components/ChatOverlay'
 import PositionsOverlay from './components/PositionsOverlay'
 import OrderRow from './components/OrderRow'
 import TutorialOverlay from './components/TutorialOverlay'
-import AboutOverlay from './components/AboutOverlay'
 import AllDiscussionsOverlay from './components/AllDiscussionsOverlay'
 import { useMarketStatus } from './useMarketStatus'
 import { fetchLive } from './api'
@@ -48,7 +47,6 @@ export default function App() {
   const [period, setPeriod] = useState('1W')
   const [live, setLive] = useState(null)
   const [tutorialOpen, setTutorialOpen] = useState(false)
-  const [aboutOpen, setAboutOpen] = useState(false)
   const [allOpen, setAllOpen] = useState(false)
 
   useEffect(() => {
@@ -76,9 +74,7 @@ export default function App() {
         {/* ---- Screen 1: portfolio + chart ---- */}
         <section className="page page-portfolio">
           <div className="top-bar">
-            <button className="logo-btn" onClick={() => setAboutOpen(true)} aria-label="About Ailysis">
-              <img src="/logo-mark.jpg" alt="Ailysis" />
-            </button>
+            <div className="top-spacer" aria-hidden="true" />
             <MarketPill />
             <button className="help-btn" onClick={() => setTutorialOpen(true)} aria-label="Open tutorial">
               ?
@@ -207,7 +203,6 @@ export default function App() {
       />
       <AllDiscussionsOverlay open={allOpen} orders={data.orders} onOpen={setActiveOrder} onClose={() => setAllOpen(false)} />
       <TutorialOverlay open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
-      <AboutOverlay open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <ChatOverlay order={activeOrder} onClose={() => setActiveOrder(null)} />
     </div>
   )
