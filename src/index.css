@@ -746,7 +746,11 @@ body {
 /* ---------------- Tutorial overlay ---------------- */
 .tut-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100svh;
+  height: 100dvh;
   z-index: 220;
   max-width: 480px;
   margin: 0 auto;
@@ -794,7 +798,7 @@ body {
   scroll-snap-align: center;
   display: grid;
   place-items: center;
-  padding: calc(env(safe-area-inset-top) + 62px) 18px calc(env(safe-area-inset-bottom) + 58px);
+  padding: calc(env(safe-area-inset-top) + 52px) 18px 96px;
 }
 .tut-slide img {
   max-width: 100%;
@@ -805,7 +809,7 @@ body {
 }
 .tut-dots {
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  bottom: 26px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
