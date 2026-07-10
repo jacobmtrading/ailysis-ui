@@ -149,19 +149,62 @@ body {
   padding: calc(env(safe-area-inset-top) + 16px) 22px calc(env(safe-area-inset-bottom) + 20px);
 }
 
-/* ---------------- Market pill (top) ---------------- */
-.market-pill {
-  align-self: center;
-  display: inline-flex;
+/* ---------------- Top bar (logo · market pill · help) ---------------- */
+.top-bar {
+  display: flex;
   align-items: center;
   gap: 8px;
+  padding: 6px 0 2px;
+}
+.logo-btn {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--hair);
+  background: #fff;
+  cursor: pointer;
+}
+.logo-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transform: scale(1.4);
+  transform-origin: 50% 34%;
+}
+.help-btn {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  font-size: 19px;
+  font-weight: 700;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+.help-btn:active { background: var(--chip); }
+
+/* ---------------- Market pill ---------------- */
+.market-pill {
+  margin: 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--black);
   color: #fff;
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 500;
-  padding: 11px 20px;
+  padding: 7px 13px;
   border-radius: 999px;
-  margin: 8px 0 6px;
+  white-space: nowrap;
 }
 .market-pill b {
   font-weight: 600;
@@ -675,6 +718,179 @@ body {
   font-variant-numeric: tabular-nums;
   flex: 0 0 auto;
   white-space: nowrap;
+}
+.pos-legend {
+  display: flex;
+  gap: 18px;
+  padding: 10px 20px 2px;
+}
+.pos-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.pos-legend-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+/* ---------------- All discussions overlay (light) ---------------- */
+.all-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: var(--text);
+  animation: slideIn 0.26s ease;
+}
+.all-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 20px calc(env(safe-area-inset-bottom) + 24px);
+}
+
+/* ---------------- Tutorial overlay ---------------- */
+.tut-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  max-width: 480px;
+  margin: 0 auto;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.tut-close {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 10px);
+  right: 14px;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.tut-track {
+  flex: 1 1 auto;
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tut-track::-webkit-scrollbar { display: none; }
+.tut-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: center;
+  display: grid;
+  place-items: center;
+}
+.tut-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.tut-dots {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+.tut-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.tut-dot.active {
+  background: #fff;
+  transform: scale(1.25);
+}
+
+/* ---------------- About overlay (light) ---------------- */
+.about-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: var(--text);
+  animation: slideIn 0.26s ease;
+}
+.about-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+  border-bottom: 1px solid var(--hair);
+}
+.about-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 24px 24px calc(env(safe-area-inset-bottom) + 24px);
+}
+.about-logo {
+  display: block;
+  width: 200px;
+  max-width: 62%;
+  height: auto;
+  margin: 8px auto 24px;
+}
+.about-text {
+  font-size: 16px;
+  line-height: 1.55;
+  color: #333;
+  margin: 0 0 16px;
+}
+.about-muted {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 300;
+  font-size: 20px;
+  color: var(--text);
+  text-align: center;
+  margin: 24px 0;
+}
+.about-note {
+  font-size: 13px;
+  color: var(--muted);
+  border-top: 1px solid var(--hair);
+  padding-top: 16px;
+  margin-top: 24px;
 }
 
 /* ---------------- WhatsApp chat overlay (DARK) ---------------- */

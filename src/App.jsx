@@ -4,14 +4,15 @@ import LineChart from './components/LineChart'
 import PieChart from './components/PieChart'
 import ChatOverlay from './components/ChatOverlay'
 import PositionsOverlay from './components/PositionsOverlay'
+import OrderRow from './components/OrderRow'
+import TutorialOverlay from './components/TutorialOverlay'
+import AboutOverlay from './components/AboutOverlay'
+import AllDiscussionsOverlay from './components/AllDiscussionsOverlay'
 import { useMarketStatus } from './useMarketStatus'
 import { fetchLive } from './api'
 import { PERIODS, PERIOD_LABEL } from './data/portfolio'
 
-const fmtMoney2 = (n) =>
-  n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
 const fmtPct = (n) => `${Math.abs(n).toFixed(2)}%`
-
 const PERIOD_FOR = { Day: '1D', Week: '1W', Month: '1M' }
 
 // Clean empty state — shown while loading and until the board makes its
@@ -33,60 +34,11 @@ function MarketPill() {
   return (
     <div className="market-pill">
       <span className={`market-dot ${m.open ? 'open' : 'closed'}`} />
-      {m.open ? (
-        <span>
-          {m.label2 || 'Market'} <b>open</b> · closes in <b>{m.label}</b>
-        </span>
-      ) : (
-        <span>
-          Markets <b>closed</b> · opens in <b>{m.label}</b>
-        </span>
-      )}
+      <span>
+        {m.open ? 'Open' : 'Closed'} · <b>{m.label}</b>
+      </span>
     </div>
   )
-}
-
-const SIDE_META = {
-  buy: { tag: 'BUY', cls: 'buy-tag' },
-  sell: { tag: 'SELL', cls: 'sell-tag' },
-  pass: { tag: 'PASS', cls: 'pass-tag' },
-  review: { tag: 'REVIEW', cls: 'pass-tag' },
-}
-
-function OrderRow({ order, onOpen }) {
-  const meta = SIDE_META[order.side] || SIDE_META.buy
-  const hasPl = order.side === 'buy' || order.side === 'sell'
-  const up = order.pl >= 0
-  const sub =
-    order.side === 'pass'
-      ? `${order.timeLabel} · board passed`
-      : order.side === 'review'
-        ? `${order.timeLabel} · daily check`
-        : `${order.timeLabel} · ${order.qty} @ ${fmtMoney2(order.price)}`
-  return (
-    <button className="order-row" onClick={() => order.chat && onOpen(order)}>
-      <div className={`order-badge badge-${badgeOf(order)}`}>{order.ticker.slice(0, 4)}</div>
-      <div className="order-main">
-        <div className="order-name">{order.name}</div>
-        <div className="order-sub">
-          <span className={meta.cls}>{meta.tag}</span> {sub}
-        </div>
-      </div>
-      <div className="order-nums">
-        <div className="order-pl-label">{hasPl ? 'P/L' : ''}</div>
-        <div className={`order-pl ${up ? 'up' : 'down'}`}>
-          {hasPl ? `${up ? '+' : ''}${order.pl.toFixed(1)}%` : '—'}
-        </div>
-      </div>
-    </button>
-  )
-}
-
-function badgeOf(order) {
-  if (typeof order.badge === 'number') return order.badge
-  let h = 0
-  for (const c of order.ticker) h = (h * 31 + c.charCodeAt(0)) % 997
-  return h % 6
 }
 
 export default function App() {
@@ -95,6 +47,9 @@ export default function App() {
   const [positionsOpen, setPositionsOpen] = useState(null)
   const [period, setPeriod] = useState('1W')
   const [live, setLive] = useState(null)
+  const [tutorialOpen, setTutorialOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [allOpen, setAllOpen] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -120,7 +75,15 @@ export default function App() {
       <div className="pager">
         {/* ---- Screen 1: portfolio + chart ---- */}
         <section className="page page-portfolio">
-          <MarketPill />
+          <div className="top-bar">
+            <button className="logo-btn" onClick={() => setAboutOpen(true)} aria-label="About Ailysis">
+              <img src="/logo-mark.jpg" alt="Ailysis" />
+            </button>
+            <MarketPill />
+            <button className="help-btn" onClick={() => setTutorialOpen(true)} aria-label="Open tutorial">
+              ?
+            </button>
+          </div>
 
           <div className="tr-header">
             <div className="tr-titlewrap">
@@ -172,8 +135,11 @@ export default function App() {
 
         {/* ---- Screen 2: order history only ---- */}
         <section className="page page-orders">
-          <div className="tr-header">
+          <div className="tr-header order-header">
             <div className="tr-title">Order history</div>
+            <button className="top-seeall" onClick={() => setAllOpen(true)}>
+              See all ›
+            </button>
           </div>
 
           <div className="order-list">
@@ -232,7 +198,16 @@ export default function App() {
         </section>
       </div>
 
-      <PositionsOverlay open={!!positionsOpen} title={positionsOpen} positions={data.positions} onClose={() => setPositionsOpen(null)} />
+      <PositionsOverlay
+        open={!!positionsOpen}
+        title={positionsOpen}
+        positions={data.positions}
+        colorByType={positionsOpen === 'By asset class'}
+        onClose={() => setPositionsOpen(null)}
+      />
+      <AllDiscussionsOverlay open={allOpen} orders={data.orders} onOpen={setActiveOrder} onClose={() => setAllOpen(false)} />
+      <TutorialOverlay open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
+      <AboutOverlay open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <ChatOverlay order={activeOrder} onClose={() => setActiveOrder(null)} />
     </div>
   )

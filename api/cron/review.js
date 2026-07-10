@@ -59,18 +59,18 @@ export default async function handler(req, res) {
       decisionLine: `${board.closing || ''}${executed.length ? ` Executed: sold ${executed.join(', ')}. 🔴` : ' Holding everything. ⚪️'}`,
     })
     state.chats[chatId] = chat
-    if (!executed.length) {
-      state.orders.unshift({
-        id: `review-${Date.now()}`,
-        ticker: 'REVIEW',
-        name: 'Daily portfolio review',
-        side: 'review',
-        qty: 0,
-        price: 0,
-        time: Date.now(),
-        chatId,
-      })
-    }
+    // Always add a "Daily review" entry so the sell discussion is visible in
+    // the order history even on days when nothing is sold.
+    state.orders.unshift({
+      id: `review-${Date.now()}`,
+      ticker: 'REVIEW',
+      name: 'Daily portfolio review',
+      side: 'review',
+      qty: 0,
+      price: 0,
+      time: Date.now(),
+      chatId,
+    })
 
     await saveState(state)
     json(res, 200, { ok: true, sells: executed, votes: board.votes })

@@ -78,6 +78,7 @@ export async function fetchLive() {
     const positions = (state.positions || []).map((p) => ({
       name: p.name,
       ticker: p.ticker,
+      type: p.type,
       change: p.plPct,
       weight: p.weightPct,
       badge: badgeFor(p.ticker),
