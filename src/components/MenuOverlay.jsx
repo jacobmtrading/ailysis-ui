@@ -1,7 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import * as api from '../account'
 
 const TIER_LABEL = { free: 'Free', premium: 'Premium', tailormade: 'Tailormade' }
+const INTERVAL_SUFFIX = { month: '/mo', year: '/yr', lifetime: ' once' }
+
+function priceLabel(p) {
+  const amt = (p.amount / 100).toLocaleString(undefined, { style: 'currency', currency: (p.currency || 'eur').toUpperCase() })
+  return `${amt}${INTERVAL_SUFFIX[p.interval] || ''}`
+}
 
 export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio, onOpenAdmin }) {
   const [mode, setMode] = useState('login') // login | register
@@ -10,6 +16,13 @@ export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio,
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [plans, setPlans] = useState(null)
+
+  useEffect(() => {
+    if (open && user && user.tier !== 'tailormade' && !plans) {
+      api.plans().then((d) => setPlans(d.plans || [])).catch(() => setPlans([]))
+    }
+  }, [open, user, plans])
 
   if (!open) return null
 
@@ -117,15 +130,32 @@ export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio,
             {user.tier !== 'tailormade' && (
               <div className="menu-section">
                 <div className="menu-heading">Subscription</div>
-                {user.tier === 'free' && (
-                  <button className="menu-primary" disabled={busy} onClick={() => goCheckout('premium')}>
-                    Upgrade to Premium
-                  </button>
+                {plans === null && <div className="menu-note">Loading plans…</div>}
+                {plans && plans.length === 0 && (
+                  <div className="menu-note">Plans aren't configured yet (add STRIPE_SECRET_KEY in Vercel).</div>
                 )}
-                <button className="menu-primary dark" disabled={busy} onClick={() => goCheckout('tailormade')}>
-                  Upgrade to Tailormade
-                </button>
-                <div className="menu-note">Premium: personalized board analyses. Tailormade: + portfolio builder & portfolio check.</div>
+                {plans && plans.length > 0 && (
+                  <>
+                    {['premium', 'tailormade']
+                      .filter((t) => t !== user.tier || t === 'tailormade')
+                      .map((tierKey) => {
+                        const group = plans.filter((p) => p.tier === tierKey)
+                        if (!group.length) return null
+                        return (
+                          <div className="plan-group" key={tierKey}>
+                            <div className="plan-tier-name">{TIER_LABEL[tierKey]}</div>
+                            {group.map((p) => (
+                              <button key={p.key} className="plan-btn" disabled={busy} onClick={() => goCheckout(p.key)}>
+                                <span className="plan-name">{p.name}</span>
+                                <span className="plan-price">{priceLabel(p)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )
+                      })}
+                    <div className="menu-note">Premium: personalized board analyses. Tailormade: + portfolio builder &amp; portfolio check.</div>
+                  </>
+                )}
               </div>
             )}
 

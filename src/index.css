@@ -1288,3 +1288,36 @@ body {
   color: #fff;
 }
 .pos-legend { padding: 0; }
+
+/* subscription plan picker */
+.plan-group { margin-bottom: 14px; }
+.plan-tier-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.plan-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: #fff;
+  border: 1.5px solid var(--hair);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.plan-btn:active { border-color: var(--green); background: var(--chip); }
+.plan-btn:disabled { opacity: 0.5; }
+.plan-name { font-size: 15px; font-weight: 600; color: var(--text); }
+.plan-price {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+}

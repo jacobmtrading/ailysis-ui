@@ -91,7 +91,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onClose }) {
           <>
             <div className="menu-heading">Let the board analyze a stock or ETF</div>
             {locked('premium') ? (
-              <div className="menu-note">🔒 Personalized analysis needs a Premium subscription — upgrade in the ☰ menu.</div>
+              <div className="menu-note">🔒 Personalized analysis needs the Premium subscription — upgrade in the ☰ menu.</div>
             ) : (
               <>
                 <input

@@ -22,6 +22,7 @@ export const logout = () => call('/api/auth', { method: 'POST', body: { action: 
 export const me = () => call('/api/auth')
 export const redeemCode = (code) => call('/api/auth', { method: 'POST', body: { action: 'code', code } })
 
+export const plans = () => call('/api/stripe')
 export const checkout = (plan) => call('/api/stripe', { method: 'POST', body: { action: 'checkout', plan } })
 export const confirmCheckout = (sessionId) =>
   call('/api/stripe', { method: 'POST', body: { action: 'confirm', sessionId } })
