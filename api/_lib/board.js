@@ -137,3 +137,69 @@ export async function runReview({ positions, snapshot }) {
     sells,
   }
 }
+
+// ---------- Tailormade: portfolio builder ----------
+const BUILD_PROMPT = `You are the investment board of "ailysis" (agents with exact keys "max" momentum/news with scenario outlooks, "valeria" value/numbers, "kian" charts, "rayan" risk/weighting strategist, "emilia" 50/50 allocation guardian and ETF-concentration hawk, "mod" moderator). A client asked you to BUILD a portfolio matching their specification. You may ONLY use tickers from the allowed_universe provided.
+
+RULES:
+- 6 to 9 messages, 1-3 sentences each, casual group-chat tone; agents debate what fits the client's spec (time span, volatility, diversification, sectors, themes, asset class) and reference it explicitly.
+- Respect the spec: no position above the client's max position size; favor their sectors/themes; match the asset-class preference; more volatile picks only if their volatility tolerance allows.
+- Then all five vote on the final proposal. Weights must sum to roughly 100 (a cash remainder under 10% is fine).
+- 4 to 10 positions.
+
+Respond with ONLY this JSON:
+{
+  "messages": [{"from": "max", "text": "..."}, ...],
+  "votes": {"max": "yes|no", "valeria": "yes|no", "kian": "yes|no", "rayan": "yes|no", "emilia": "yes|no"},
+  "closing": "one short moderator line",
+  "portfolio": [{"ticker": "XYZ", "weightPct": 20, "reason": "a few words"}]
+}`
+
+export async function runBuild({ spec, universe }) {
+  const user = JSON.stringify({ client_spec: spec, allowed_universe: universe })
+  const raw = await callDeepSeek(BUILD_PROMPT, user, 1500)
+  const allowed = new Set(universe.map((u) => u.ticker))
+  let portfolio = (Array.isArray(raw.portfolio) ? raw.portfolio : [])
+    .filter((p) => p && allowed.has(p.ticker))
+    .slice(0, 10)
+    .map((p) => ({
+      ticker: p.ticker,
+      weightPct: Math.max(1, Math.min(Number(spec.maxPosPct) || 100, Math.round(Number(p.weightPct) || 0))),
+      reason: String(p.reason || '').slice(0, 120),
+    }))
+  const total = portfolio.reduce((s, p) => s + p.weightPct, 0)
+  if (total > 100) portfolio = portfolio.map((p) => ({ ...p, weightPct: Math.round((p.weightPct / total) * 100) }))
+  return {
+    messages: cleanMessages(raw.messages, 9),
+    votes: cleanVotes(raw.votes),
+    closing: String(raw.closing || '').slice(0, 300),
+    portfolio,
+  }
+}
+
+// ---------- Tailormade: evaluate a client's own portfolio ----------
+const EVAL_PROMPT = `You are the investment board of "ailysis" (agents with exact keys "max" momentum/news with scenario outlooks, "valeria" value/numbers, "kian" charts, "rayan" risk/weighting strategist, "emilia" 50/50 allocation guardian and ETF-concentration hawk, "mod" moderator). A client submitted THEIR OWN portfolio for review. Assess it honestly through each agent's lens: concentration and sizing (rayan), asset-class and diversification balance (emilia), quality/valuation (valeria), trend health (kian), macro/news exposure with scenario outlook (max).
+
+RULES:
+- 6 to 9 messages, 1-3 sentences each, casual group-chat tone, honest and specific — praise what is good, flag what is risky, suggest concrete improvements.
+- Then all five vote on the moderator's question: "Would the board hold this portfolio as-is?"
+- Give an overall score from 1 (poor) to 10 (excellent).
+
+Respond with ONLY this JSON:
+{
+  "messages": [{"from": "max", "text": "..."}, ...],
+  "votes": {"max": "yes|no", "valeria": "yes|no", "kian": "yes|no", "rayan": "yes|no", "emilia": "yes|no"},
+  "closing": "one short moderator line incl. the score",
+  "score": 7
+}`
+
+export async function runEvaluate({ positions }) {
+  const user = JSON.stringify({ client_portfolio: positions })
+  const raw = await callDeepSeek(EVAL_PROMPT, user, 1400)
+  return {
+    messages: cleanMessages(raw.messages, 9),
+    votes: cleanVotes(raw.votes),
+    closing: String(raw.closing || '').slice(0, 300),
+    score: Math.max(1, Math.min(10, Math.round(Number(raw.score) || 5))),
+  }
+}

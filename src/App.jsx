@@ -7,8 +7,12 @@ import PositionsOverlay from './components/PositionsOverlay'
 import OrderRow from './components/OrderRow'
 import TutorialOverlay from './components/TutorialOverlay'
 import AllDiscussionsOverlay from './components/AllDiscussionsOverlay'
+import MenuOverlay from './components/MenuOverlay'
+import StudioOverlay from './components/StudioOverlay'
+import AdminOverlay from './components/AdminOverlay'
 import { useMarketStatus } from './useMarketStatus'
 import { fetchLive } from './api'
+import * as account from './account'
 import { PERIODS, PERIOD_LABEL } from './data/portfolio'
 
 const fmtPct = (n) => `${Math.abs(n).toFixed(2)}%`
@@ -48,6 +52,10 @@ export default function App() {
   const [live, setLive] = useState(null)
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [allOpen, setAllOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [studioOpen, setStudioOpen] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(false)
+  const [user, setUser] = useState(null)
 
   useEffect(() => {
     let mounted = true
@@ -58,6 +66,31 @@ export default function App() {
       mounted = false
       clearInterval(id)
     }
+  }, [])
+
+  // Restore session + finish a Stripe checkout if we were redirected back.
+  useEffect(() => {
+    if (!account.getToken()) return
+    account
+      .me()
+      .then(async (d) => {
+        if (!d.user) return account.setToken(null)
+        setUser(d.user)
+        const params = new URLSearchParams(window.location.search)
+        const sid = params.get('session_id')
+        if (sid) {
+          try {
+            await account.confirmCheckout(sid)
+            const fresh = await account.me()
+            if (fresh.user) setUser(fresh.user)
+            setMenuOpen(true)
+          } catch {
+            /* payment not completed */
+          }
+          window.history.replaceState({}, '', window.location.pathname)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const data = live || EMPTY
@@ -74,7 +107,12 @@ export default function App() {
         {/* ---- Screen 1: portfolio + chart ---- */}
         <section className="page page-portfolio">
           <div className="top-bar">
-            <div className="top-spacer" aria-hidden="true" />
+            <button className="help-btn burger" onClick={() => setMenuOpen(true)} aria-label="Account & subscription">
+              <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+              {user && <span className={`burger-dot tier-${user.tier}`} />}
+            </button>
             <MarketPill />
             <button className="help-btn" onClick={() => setTutorialOpen(true)} aria-label="Open tutorial">
               ?
@@ -203,6 +241,16 @@ export default function App() {
       />
       <AllDiscussionsOverlay open={allOpen} orders={data.orders} onOpen={setActiveOrder} onClose={() => setAllOpen(false)} />
       <TutorialOverlay open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
+      <MenuOverlay
+        open={menuOpen}
+        user={user}
+        onUser={setUser}
+        onClose={() => setMenuOpen(false)}
+        onOpenStudio={() => setStudioOpen(true)}
+        onOpenAdmin={() => setAdminOpen(true)}
+      />
+      <StudioOverlay open={studioOpen} user={user} onOpenChat={setActiveOrder} onClose={() => setStudioOpen(false)} />
+      <AdminOverlay open={adminOpen} onClose={() => setAdminOpen(false)} />
       <ChatOverlay order={activeOrder} onClose={() => setActiveOrder(null)} />
     </div>
   )

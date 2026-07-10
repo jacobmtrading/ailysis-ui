@@ -74,3 +74,18 @@ npm run dev
 ```
 
 Locally there is no `/api`, so the app falls back to bundled demo data.
+
+## Accounts, subscriptions & studio (added later)
+
+- **Auth:** username + password only (scrypt-hashed), session tokens in Redis. ☰ menu top-left.
+- **Tiers:** free → premium (personalized board analyses) → tailormade (+ portfolio builder, portfolio check). 4-digit reusable friend codes grant tiers; admins manage users/codes in the in-app admin panel.
+- **Stripe:** Checkout subscriptions; tier upgrade is confirmed on redirect (`/?session_id=...` → `/api/stripe confirm`). Cancellations are downgraded manually via the admin panel.
+
+Extra environment variables:
+
+| Name | Purpose |
+|---|---|
+| `ADMIN_USERNAME` | this username gets the admin role on register/login |
+| `STRIPE_SECRET_KEY` | sk_live_... or sk_test_... |
+| `STRIPE_PRICE_PREMIUM` | price_... id of the Premium subscription |
+| `STRIPE_PRICE_TAILORMADE` | price_... id of the Tailormade subscription |

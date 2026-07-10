@@ -1,0 +1,62 @@
+// Admin panel API (requires role=admin):
+// GET  /api/admin -> { users: [...], codes: [...] }
+// POST /api/admin { action: 'setTier'|'addCode'|'delCode', ... }
+import { sessionUser, saveUsers, isAdmin, TIER_RANK } from './_lib/auth.js'
+import { json } from './_lib/http.js'
+
+export default async function handler(req, res) {
+  try {
+    const sess = await sessionUser(req)
+    if (!sess || !isAdmin(sess.user)) return json(res, 403, { error: 'admin only' })
+    const db = sess.db
+
+    if (req.method === 'GET') {
+      const users = Object.entries(db.users).map(([username, u]) => ({
+        username,
+        tier: u.tier || 'free',
+        role: u.role || 'user',
+        createdAt: u.createdAt,
+      }))
+      users.sort((a, b) => b.createdAt - a.createdAt)
+      const codes = Object.entries(db.codes).map(([code, c]) => ({
+        code,
+        tier: c.tier || 'premium',
+        uses: c.uses || 0,
+        createdAt: c.createdAt,
+      }))
+      codes.sort((a, b) => b.createdAt - a.createdAt)
+      return json(res, 200, { users, codes })
+    }
+
+    const { action, username, tier, code } = req.body || {}
+
+    if (action === 'setTier') {
+      const key = String(username || '').toLowerCase()
+      if (!db.users[key]) return json(res, 404, { error: 'no such user' })
+      if (!(tier in TIER_RANK)) return json(res, 400, { error: 'bad tier' })
+      db.users[key].tier = tier
+      await saveUsers(db)
+      return json(res, 200, { ok: true })
+    }
+
+    if (action === 'addCode') {
+      const c = String(code || '').trim()
+      if (!/^\d{4}$/.test(c)) return json(res, 400, { error: 'Codes are 4 digits' })
+      if (db.codes[c]) return json(res, 409, { error: 'Code already exists' })
+      if (!(tier in TIER_RANK) || tier === 'free') return json(res, 400, { error: 'bad tier' })
+      db.codes[c] = { tier, uses: 0, createdAt: Date.now() }
+      await saveUsers(db)
+      return json(res, 200, { ok: true })
+    }
+
+    if (action === 'delCode') {
+      delete db.codes[String(code || '').trim()]
+      await saveUsers(db)
+      return json(res, 200, { ok: true })
+    }
+
+    return json(res, 400, { error: 'unknown action' })
+  } catch (err) {
+    return json(res, 500, { error: String(err.message || err) })
+  }
+}

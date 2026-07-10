@@ -1,8 +1,24 @@
+import { useMemo, useState } from 'react'
+
 // Asset-class palette (matches the Asset class donut): stocks black, ETFs green.
 const TYPE_COLOR = { stock: '#101012', etf: '#06c167' }
 
+const SORTS = [
+  { key: 'chgD', label: 'Day' },
+  { key: 'chgW', label: 'Week' },
+  { key: 'chgM', label: 'Month' },
+]
+
 export default function PositionsOverlay({ open, title, positions = [], colorByType = false, onClose }) {
+  const [sortKey, setSortKey] = useState('chgD')
+
+  const sorted = useMemo(() => {
+    const val = (p) => (p[sortKey] == null ? -Infinity : p[sortKey])
+    return [...positions].sort((a, b) => val(b) - val(a))
+  }, [positions, sortKey])
+
   if (!open) return null
+
   return (
     <div className="pos-overlay">
       <header className="pos-header">
@@ -17,21 +33,32 @@ export default function PositionsOverlay({ open, title, positions = [], colorByT
         </div>
       </header>
 
-      {colorByType && (
-        <div className="pos-legend">
-          <span className="pos-legend-item">
-            <span className="pos-legend-dot" style={{ background: TYPE_COLOR.stock }} /> Stocks
-          </span>
-          <span className="pos-legend-item">
-            <span className="pos-legend-dot" style={{ background: TYPE_COLOR.etf }} /> ETFs
-          </span>
+      <div className="pos-toolbar">
+        <div className="pos-sorts">
+          <span className="pos-sort-label">Sort by</span>
+          {SORTS.map((s) => (
+            <button key={s.key} className={`pos-sort ${sortKey === s.key ? 'active' : ''}`} onClick={() => setSortKey(s.key)}>
+              {s.label}
+            </button>
+          ))}
         </div>
-      )}
+        {colorByType && (
+          <div className="pos-legend">
+            <span className="pos-legend-item">
+              <span className="pos-legend-dot" style={{ background: TYPE_COLOR.stock }} /> Stocks
+            </span>
+            <span className="pos-legend-item">
+              <span className="pos-legend-dot" style={{ background: TYPE_COLOR.etf }} /> ETFs
+            </span>
+          </div>
+        )}
+      </div>
 
       <div className="pos-list">
-        {positions.length === 0 && <div className="empty-note">No positions yet — 100% cash.</div>}
-        {positions.map((p, i) => {
-          const up = p.change >= 0
+        {sorted.length === 0 && <div className="empty-note">No positions yet — 100% cash.</div>}
+        {sorted.map((p, i) => {
+          const v = p[sortKey]
+          const up = (v ?? 0) >= 0
           const badgeStyle = colorByType ? { background: TYPE_COLOR[p.type] || '#5b6167' } : undefined
           return (
             <div className="pos-row" key={i}>
@@ -47,7 +74,7 @@ export default function PositionsOverlay({ open, title, positions = [], colorByT
                 </div>
               </div>
               <div className={`pos-pl ${up ? 'up' : 'down'}`}>
-                {up ? '▲' : '▼'} {Math.abs(p.change).toFixed(2)}%
+                {v == null ? '—' : `${up ? '▲' : '▼'} ${Math.abs(v).toFixed(2)}%`}
               </div>
             </div>
           )

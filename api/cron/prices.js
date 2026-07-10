@@ -2,7 +2,7 @@
 // Zero LLM cost: refreshes quotes, appends a portfolio value point,
 // and enforces stop-losses (with a templated chat, no tokens).
 import { loadState, saveState, portfolioValue } from '../_lib/state.js'
-import { fetchQuotes, anyMarketOpen } from '../_lib/market.js'
+import { fetchQuotes, fetchStats, anyMarketOpen, berlinDay } from '../_lib/market.js'
 import { executeSell, stopLossChat } from '../_lib/portfolio.js'
 import { authorized, json } from '../_lib/http.js'
 
@@ -15,7 +15,25 @@ export default async function handler(req, res) {
     const state = await loadState()
     const tickers = state.positions.map((p) => p.ticker)
     const quotes = tickers.length ? await fetchQuotes(tickers) : {}
-    for (const [t, q] of Object.entries(quotes)) state.lastPrices[t] = q.price
+    for (const [t, q] of Object.entries(quotes)) {
+      state.lastPrices[t] = q.price
+      const pos = state.positions.find((p) => p.ticker === t)
+      if (pos) pos.chgD = +q.dayChgPct.toFixed(2)
+    }
+
+    // Once per day: weekly/monthly change per position (for sorting in the app).
+    const day = berlinDay()
+    state.daily[day] = state.daily[day] || { boards: 0, reviewed: false }
+    if (!state.daily[day].statsDone && state.positions.length) {
+      const stats = await Promise.all(state.positions.map((p) => fetchStats(p.ticker)))
+      state.positions.forEach((p, i) => {
+        if (stats[i]) {
+          p.chgW = stats[i].chg5dPct
+          p.chgM = stats[i].chg20dPct
+        }
+      })
+      state.daily[day].statsDone = true
+    }
 
     // Binding stop-losses — code-enforced, no board call needed.
     const stopped = []

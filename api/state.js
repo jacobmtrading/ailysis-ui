@@ -22,6 +22,9 @@ export default async function handler(req, res) {
           price,
           plPct: +(((price - p.avgPrice) / p.avgPrice) * 100).toFixed(1),
           weightPct: +(((p.qty * price) / value) * 100).toFixed(1),
+          chgD: p.chgD ?? null,
+          chgW: p.chgW ?? null,
+          chgM: p.chgM ?? null,
         }
       })
       .sort((a, b) => b.weightPct - a.weightPct)

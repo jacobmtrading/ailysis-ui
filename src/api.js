@@ -80,6 +80,9 @@ export async function fetchLive() {
       ticker: p.ticker,
       type: p.type,
       change: p.plPct,
+      chgD: p.chgD,
+      chgW: p.chgW,
+      chgM: p.chgM,
       weight: p.weightPct,
       badge: badgeFor(p.ticker),
     }))
