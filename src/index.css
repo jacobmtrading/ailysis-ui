@@ -1292,11 +1292,10 @@ body {
 /* subscription plan picker */
 .plan-group { margin-bottom: 14px; }
 .plan-tier-name {
-  font-size: 13px;
+  font-size: 22px;
   font-weight: 800;
+  letter-spacing: -0.4px;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   margin-bottom: 8px;
 }
 .plan-btn {

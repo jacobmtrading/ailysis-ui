@@ -185,7 +185,6 @@ export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio,
 
             {user.tier !== 'tailormade' && (
               <div className="menu-section">
-                <div className="menu-heading">Subscription</div>
                 {['premium', 'tailormade']
                   .filter((t) => TIER_RANK[t] > TIER_RANK[user.tier])
                   .map((tierKey) => {
