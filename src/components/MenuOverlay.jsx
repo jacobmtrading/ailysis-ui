@@ -50,11 +50,6 @@ export default function MenuOverlay({ open, user, onUser, expandTier, onClose, o
     }
   }, [open, user, plans])
 
-  // When arriving from an "Upgrade to X" prompt, expand that tier's plans.
-  useEffect(() => {
-    if (open && expandTier) setExpandedTier(expandTier)
-  }, [open, expandTier])
-
   if (!open) return null
 
   const run = async (fn, okMsg) => {
