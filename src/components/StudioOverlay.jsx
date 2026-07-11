@@ -5,11 +5,13 @@ import { UNIVERSE } from '../../api/_lib/universe.js'
 const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer', 'Industrials', 'Aerospace & Defence', 'Communication']
 const THEMES = ['Momentum', 'Value', 'Growth', 'Dividends', 'Picks & Shovels', 'Defensive']
 const TIER_RANK = { free: 0, premium: 1, tailormade: 2 }
+const TIER_LABEL = { premium: 'Premium', tailormade: 'Tailormade' }
 
 export default function StudioOverlay({ open, user, onOpenChat, onClose }) {
   const [tab, setTab] = useState('analyze')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
+  const [upsell, setUpsell] = useState(null)
   const [mine, setMine] = useState([])
 
   // analyze
@@ -58,6 +60,22 @@ export default function StudioOverlay({ open, user, onOpenChat, onClose }) {
   const toggle = (list, setList, v) =>
     setList(list.includes(v) ? list.filter((x) => x !== v) : [...list, v])
 
+  // Free users can play with the inputs, but committing needs the tier.
+  const tryRun = (need, fn) => {
+    if (locked(need)) {
+      setUpsell(need)
+      return
+    }
+    setUpsell(null)
+    run(fn)
+  }
+
+  const pickTab = (t) => {
+    setTab(t)
+    setUpsell(null)
+    setErr(null)
+  }
+
   return (
     <div className="studio-overlay">
       <header className="pos-header">
@@ -73,13 +91,13 @@ export default function StudioOverlay({ open, user, onOpenChat, onClose }) {
       </header>
 
       <div className="menu-tabs studio-tabs">
-        <button className={tab === 'analyze' ? 'active' : ''} onClick={() => setTab('analyze')}>
+        <button className={tab === 'analyze' ? 'active' : ''} onClick={() => pickTab('analyze')}>
           Analyze {locked('premium') && '🔒'}
         </button>
-        <button className={tab === 'build' ? 'active' : ''} onClick={() => setTab('build')}>
+        <button className={tab === 'build' ? 'active' : ''} onClick={() => pickTab('build')}>
           Builder {locked('tailormade') && '🔒'}
         </button>
-        <button className={tab === 'check' ? 'active' : ''} onClick={() => setTab('check')}>
+        <button className={tab === 'check' ? 'active' : ''} onClick={() => pickTab('check')}>
           Check {locked('tailormade') && '🔒'}
         </button>
       </div>
@@ -90,125 +108,122 @@ export default function StudioOverlay({ open, user, onOpenChat, onClose }) {
         {user && tab === 'analyze' && (
           <>
             <div className="menu-heading">Let the board analyze a stock or ETF</div>
-            {locked('premium') ? (
-              <div className="menu-note">🔒 Personalized analysis needs the Premium subscription — upgrade in the ☰ menu.</div>
-            ) : (
-              <>
-                <input
-                  className="menu-input"
-                  placeholder="Search ticker or name (e.g. NVDA)"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-                {matches.map((m) => (
-                  <button
-                    key={m.t}
-                    className="menu-link"
-                    disabled={busy}
-                    onClick={() => run(() => api.analyzeStock(m.t))}
-                  >
-                    {busy ? '…' : `${m.t} — ${m.n} (${m.type === 'etf' ? 'ETF' : m.ind})`}
-                  </button>
-                ))}
-              </>
+            {locked('premium') && (
+              <div className="menu-note">Preview — search freely; upgrade to Premium to run the analysis. 🔒</div>
             )}
+            <input
+              className="menu-input"
+              placeholder="Search ticker or name (e.g. NVDA)"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {matches.map((m) => (
+              <button
+                key={m.t}
+                className="menu-link"
+                disabled={busy}
+                onClick={() => tryRun('premium', () => api.analyzeStock(m.t))}
+              >
+                {busy ? '…' : `${m.t} — ${m.n} (${m.type === 'etf' ? 'ETF' : m.ind})`}
+                {locked('premium') ? ' 🔒' : ''}
+              </button>
+            ))}
           </>
         )}
 
         {user && tab === 'build' && (
           <>
             <div className="menu-heading">The board builds a portfolio to your spec</div>
-            {locked('tailormade') ? (
-              <div className="menu-note">🔒 The portfolio builder needs the Tailormade subscription — upgrade in the ☰ menu.</div>
-            ) : (
-              <>
-                <label className="menu-label">Time span</label>
-                <select className="menu-input" value={timeSpan} onChange={(e) => setTimeSpan(e.target.value)}>
-                  <option>short term (&lt;1y)</option>
-                  <option>medium term (1-3y)</option>
-                  <option>long term (3y+)</option>
-                </select>
-                <label className="menu-label">Volatility</label>
-                <select className="menu-input" value={volatility} onChange={(e) => setVolatility(e.target.value)}>
-                  <option>low</option>
-                  <option>medium</option>
-                  <option>high</option>
-                </select>
-                <label className="menu-label">Diversification — max position size: {maxPosPct}%</label>
-                <input type="range" min="5" max="50" step="5" value={maxPosPct} onChange={(e) => setMaxPosPct(+e.target.value)} className="menu-range" />
-                <label className="menu-label">Preferred sectors</label>
-                <div className="chip-row">
-                  {SECTORS.map((s) => (
-                    <button key={s} className={`chip ${sectors.includes(s) ? 'on' : ''}`} onClick={() => toggle(sectors, setSectors, s)}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-                <label className="menu-label">Themes</label>
-                <div className="chip-row">
-                  {THEMES.map((t) => (
-                    <button key={t} className={`chip ${themes.includes(t) ? 'on' : ''}`} onClick={() => toggle(themes, setThemes, t)}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
-                <label className="menu-label">Asset class</label>
-                <select className="menu-input" value={assetClass} onChange={(e) => setAssetClass(e.target.value)}>
-                  <option>stocks only</option>
-                  <option>ETFs only</option>
-                  <option>mixed (stocks + ETFs)</option>
-                </select>
-                <button
-                  className="menu-primary dark"
-                  disabled={busy}
-                  onClick={() => run(() => api.buildPortfolio({ timeSpan, volatility, maxPosPct, sectors, themes, assetClass }))}
-                >
-                  {busy ? 'The board is working…' : 'Build my portfolio'}
-                </button>
-              </>
+            {locked('tailormade') && (
+              <div className="menu-note">Preview — set your criteria; upgrade to Tailormade to build it. 🔒</div>
             )}
+            <label className="menu-label">Time span</label>
+            <select className="menu-input" value={timeSpan} onChange={(e) => setTimeSpan(e.target.value)}>
+              <option>short term (&lt;1y)</option>
+              <option>medium term (1-3y)</option>
+              <option>long term (3y+)</option>
+            </select>
+            <label className="menu-label">Volatility</label>
+            <select className="menu-input" value={volatility} onChange={(e) => setVolatility(e.target.value)}>
+              <option>low</option>
+              <option>medium</option>
+              <option>high</option>
+            </select>
+            <label className="menu-label">Diversification — max position size: {maxPosPct}%</label>
+            <input type="range" min="5" max="50" step="5" value={maxPosPct} onChange={(e) => setMaxPosPct(+e.target.value)} className="menu-range" />
+            <label className="menu-label">Preferred sectors</label>
+            <div className="chip-row">
+              {SECTORS.map((s) => (
+                <button key={s} className={`chip ${sectors.includes(s) ? 'on' : ''}`} onClick={() => toggle(sectors, setSectors, s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+            <label className="menu-label">Themes</label>
+            <div className="chip-row">
+              {THEMES.map((t) => (
+                <button key={t} className={`chip ${themes.includes(t) ? 'on' : ''}`} onClick={() => toggle(themes, setThemes, t)}>
+                  {t}
+                </button>
+              ))}
+            </div>
+            <label className="menu-label">Asset class</label>
+            <select className="menu-input" value={assetClass} onChange={(e) => setAssetClass(e.target.value)}>
+              <option>stocks only</option>
+              <option>ETFs only</option>
+              <option>mixed (stocks + ETFs)</option>
+            </select>
+            <button
+              className="menu-primary dark"
+              disabled={busy}
+              onClick={() => tryRun('tailormade', () => api.buildPortfolio({ timeSpan, volatility, maxPosPct, sectors, themes, assetClass }))}
+            >
+              {busy ? 'The board is working…' : `Build my portfolio${locked('tailormade') ? ' 🔒' : ''}`}
+            </button>
           </>
         )}
 
         {user && tab === 'check' && (
           <>
             <div className="menu-heading">The board reviews your own portfolio</div>
-            {locked('tailormade') ? (
-              <div className="menu-note">🔒 The portfolio check needs the Tailormade subscription — upgrade in the ☰ menu.</div>
-            ) : (
-              <>
-                {rows.map((r, i) => (
-                  <div className="menu-coderow" key={i}>
-                    <input
-                      className="menu-input"
-                      placeholder="Ticker (e.g. AAPL)"
-                      value={r.ticker}
-                      onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, ticker: e.target.value.toUpperCase() } : x)))}
-                    />
-                    <input
-                      className="menu-input weight"
-                      placeholder="%"
-                      inputMode="numeric"
-                      value={r.weightPct}
-                      onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, weightPct: e.target.value.replace(/\D/g, '') } : x)))}
-                    />
-                  </div>
-                ))}
-                <button className="menu-link" onClick={() => setRows([...rows, { ticker: '', weightPct: '' }])}>
-                  + Add position
-                </button>
-                <button
-                  className="menu-primary dark"
-                  disabled={busy}
-                  onClick={() => run(() => api.evaluatePortfolio(rows.filter((r) => r.ticker && r.weightPct)))}
-                >
-                  {busy ? 'The board is deliberating…' : 'Evaluate my portfolio'}
-                </button>
-              </>
+            {locked('tailormade') && (
+              <div className="menu-note">Preview — enter your positions; upgrade to Tailormade to run the check. 🔒</div>
             )}
+            {rows.map((r, i) => (
+              <div className="menu-coderow" key={i}>
+                <input
+                  className="menu-input"
+                  placeholder="Ticker (e.g. AAPL)"
+                  value={r.ticker}
+                  onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, ticker: e.target.value.toUpperCase() } : x)))}
+                />
+                <input
+                  className="menu-input weight"
+                  placeholder="%"
+                  inputMode="numeric"
+                  value={r.weightPct}
+                  onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, weightPct: e.target.value.replace(/\D/g, '') } : x)))}
+                />
+              </div>
+            ))}
+            <button className="menu-link" onClick={() => setRows([...rows, { ticker: '', weightPct: '' }])}>
+              + Add position
+            </button>
+            <button
+              className="menu-primary dark"
+              disabled={busy}
+              onClick={() => tryRun('tailormade', () => api.evaluatePortfolio(rows.filter((r) => r.ticker && r.weightPct)))}
+            >
+              {busy ? 'The board is deliberating…' : `Evaluate my portfolio${locked('tailormade') ? ' 🔒' : ''}`}
+            </button>
           </>
         )}
 
+        {upsell && (
+          <div className="menu-msg upsell">
+            🔒 Upgrade to {TIER_LABEL[upsell]} in the ☰ menu to run this — you can keep exploring the inputs meanwhile.
+          </div>
+        )}
         {err && <div className="menu-msg err">{err}</div>}
 
         {user && mine.length > 0 && (
