@@ -221,7 +221,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onUpgrade, onClo
 
         {upsell && (
           <button className="upsell-btn" onClick={() => onUpgrade(upsell)}>
-            Upgrade to {TIER_LABEL[upsell]} for this feature
+            Upgrade to {TIER_LABEL[upsell]}
           </button>
         )}
         {err && <div className="menu-msg err">{err}</div>}
