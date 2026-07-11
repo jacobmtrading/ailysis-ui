@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react'
 import * as api from '../account'
 
 const TIER_LABEL = { free: 'Free', premium: 'Premium', tailormade: 'Tailormade' }
+const TIER_RANK = { free: 0, premium: 1, tailormade: 2 }
+const TIER_OFFERS = {
+  premium: '🎯 Personalized board analysis of any stock or ETF',
+  tailormade: '🧱 Portfolio builder & 🩺 portfolio check — plus everything in Premium',
+}
 const INTERVAL_SUFFIX = { month: '/mo', year: '/yr', lifetime: ' once' }
 
 function priceLabel(p) {
@@ -17,6 +22,7 @@ export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio,
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
   const [plans, setPlans] = useState(null)
+  const [expandedTier, setExpandedTier] = useState(null)
 
   useEffect(() => {
     if (open && user && user.tier !== 'tailormade' && !plans) {
@@ -127,37 +133,18 @@ export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio,
               </button>
             </div>
 
-            {user.tier !== 'tailormade' && (
-              <div className="menu-section">
-                <div className="menu-heading">Subscription</div>
-                {plans === null && <div className="menu-note">Loading plans…</div>}
-                {plans && plans.length === 0 && (
-                  <div className="menu-note">Plans aren't configured yet (add STRIPE_SECRET_KEY in Vercel).</div>
-                )}
-                {plans && plans.length > 0 && (
-                  <>
-                    {['premium', 'tailormade']
-                      .filter((t) => t !== user.tier || t === 'tailormade')
-                      .map((tierKey) => {
-                        const group = plans.filter((p) => p.tier === tierKey)
-                        if (!group.length) return null
-                        return (
-                          <div className="plan-group" key={tierKey}>
-                            <div className="plan-tier-name">{TIER_LABEL[tierKey]}</div>
-                            {group.map((p) => (
-                              <button key={p.key} className="plan-btn" disabled={busy} onClick={() => goCheckout(p.key)}>
-                                <span className="plan-name">{p.name}</span>
-                                <span className="plan-price">{priceLabel(p)}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )
-                      })}
-                    <div className="menu-note">Premium: personalized board analyses. Tailormade: + portfolio builder &amp; portfolio check.</div>
-                  </>
-                )}
-              </div>
-            )}
+            <div className="menu-section">
+              <div className="menu-heading">Tools</div>
+              <button className="menu-link" onClick={onOpenStudio}>
+                🎯 Personalized analysis {user.tier === 'free' ? '🔒' : ''}
+              </button>
+              <button className="menu-link" onClick={onOpenStudio}>
+                🧱 Portfolio builder {user.tier !== 'tailormade' ? '🔒' : ''}
+              </button>
+              <button className="menu-link" onClick={onOpenStudio}>
+                🩺 Check my portfolio {user.tier !== 'tailormade' ? '🔒' : ''}
+              </button>
+            </div>
 
             <div className="menu-section">
               <div className="menu-heading">Code?</div>
@@ -176,18 +163,42 @@ export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio,
               </div>
             </div>
 
-            <div className="menu-section">
-              <div className="menu-heading">Board studio</div>
-              <button className="menu-link" onClick={onOpenStudio}>
-                🎯 Personalized analysis {user.tier === 'free' ? '🔒' : ''}
-              </button>
-              <button className="menu-link" onClick={onOpenStudio}>
-                🧱 Portfolio builder {user.tier !== 'tailormade' ? '🔒' : ''}
-              </button>
-              <button className="menu-link" onClick={onOpenStudio}>
-                🩺 Check my portfolio {user.tier !== 'tailormade' ? '🔒' : ''}
-              </button>
-            </div>
+            {user.tier !== 'tailormade' && (
+              <div className="menu-section">
+                <div className="menu-heading">Subscription</div>
+                {['premium', 'tailormade']
+                  .filter((t) => TIER_RANK[t] > TIER_RANK[user.tier])
+                  .map((tierKey) => {
+                    const open = expandedTier === tierKey
+                    const group = plans ? plans.filter((p) => p.tier === tierKey) : []
+                    return (
+                      <div className="plan-group" key={tierKey}>
+                        <div className="plan-tier-name">{TIER_LABEL[tierKey]}</div>
+                        <div className="menu-note">{TIER_OFFERS[tierKey]}</div>
+                        {!open ? (
+                          <button
+                            className={`menu-primary ${tierKey === 'tailormade' ? 'dark' : ''}`}
+                            onClick={() => setExpandedTier(tierKey)}
+                          >
+                            Upgrade to {TIER_LABEL[tierKey]}
+                          </button>
+                        ) : plans === null ? (
+                          <div className="menu-note">Loading plans…</div>
+                        ) : group.length === 0 ? (
+                          <div className="menu-note">Plans aren't configured yet (add STRIPE_SECRET_KEY in Vercel).</div>
+                        ) : (
+                          group.map((p) => (
+                            <button key={p.key} className="plan-btn" disabled={busy} onClick={() => goCheckout(p.key)}>
+                              <span className="plan-name">{p.name}</span>
+                              <span className="plan-price">{priceLabel(p)}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )
+                  })}
+              </div>
+            )}
 
             {user.role === 'admin' && (
               <div className="menu-section">
