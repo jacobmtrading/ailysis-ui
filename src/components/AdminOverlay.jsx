@@ -60,7 +60,9 @@ export default function AdminOverlay({ open, onClose }) {
           <div className="admin-row" key={u.username}>
             <div className="admin-user">
               <div className="admin-name">
-                @{u.username} {u.role === 'admin' && <span className="offer-tag">· admin</span>}
+                {u.email || u.username}
+                {u.role === 'admin' && <span className="offer-tag">· admin</span>}
+                {!u.emailVerified && <span className="offer-tag">· unverified</span>}
               </div>
               <div className="admin-sub">
                 since {new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}

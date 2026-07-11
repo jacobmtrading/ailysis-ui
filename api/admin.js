@@ -13,6 +13,8 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const users = Object.entries(db.users).map(([username, u]) => ({
         username,
+        email: u.email || username,
+        emailVerified: !!u.emailVerified,
         tier: u.tier || 'free',
         role: u.role || 'user',
         createdAt: u.createdAt,

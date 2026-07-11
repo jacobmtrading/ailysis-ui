@@ -36,7 +36,7 @@ function priceLabel(p) {
 
 export default function MenuOverlay({ open, user, onUser, expandTier, onClose, onOpenStudio, onOpenAdmin }) {
   const [mode, setMode] = useState('login') // login | register
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
@@ -69,12 +69,19 @@ export default function MenuOverlay({ open, user, onUser, expandTier, onClose, o
 
   const submitAuth = async () => {
     const fn = mode === 'login' ? api.login : api.register
-    const out = await run(() => fn(username.trim(), password))
+    const out = await run(() => fn(email.trim(), password))
     if (out?.token) {
       api.setToken(out.token)
       onUser(out.user)
       setPassword('')
+      if (mode === 'register' && !out.user?.emailVerified)
+        setMsg({ ok: true, text: 'Check your inbox to confirm your email.' })
     }
+  }
+
+  const resendVerify = async () => {
+    const out = await run(() => api.resendVerification(), 'Verification email sent — check your inbox.')
+    if (out?.alreadyVerified && user) onUser({ ...user, emailVerified: true })
   }
 
   const submitCode = async () => {
@@ -119,11 +126,13 @@ export default function MenuOverlay({ open, user, onUser, expandTier, onClose, o
             </div>
             <input
               className="menu-input"
-              placeholder="Username"
+              placeholder="Email"
+              type="email"
+              inputMode="email"
               autoCapitalize="none"
               autoCorrect="off"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
             <input
               className="menu-input"
@@ -132,10 +141,12 @@ export default function MenuOverlay({ open, user, onUser, expandTier, onClose, o
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <button className="menu-primary" disabled={busy || !username || !password} onClick={submitAuth}>
+            <button className="menu-primary" disabled={busy || !email || !password} onClick={submitAuth}>
               {busy ? '…' : mode === 'login' ? 'Log in' : 'Create account'}
             </button>
-            <div className="menu-note">No email needed — just a username and password.</div>
+            {mode === 'register' && (
+              <div className="menu-note">We'll email you a link to confirm your address.</div>
+            )}
             <div className="menu-note">Have a friends & family code? Log in first, then redeem it here.</div>
           </>
         )}
@@ -143,15 +154,26 @@ export default function MenuOverlay({ open, user, onUser, expandTier, onClose, o
         {user && (
           <>
             <div className="menu-userrow">
-              <div className="menu-avatar">{user.username.slice(0, 2).toUpperCase()}</div>
+              <div className="menu-avatar">{(user.name || user.email).slice(0, 2).toUpperCase()}</div>
               <div className="menu-userinfo">
-                <div className="menu-username">@{user.username}</div>
+                <div className="menu-username">{user.email}</div>
                 <span className={`tier-chip tier-${user.tier}`}>{TIER_LABEL[user.tier] || user.tier}</span>
               </div>
               <button className="menu-logout" onClick={doLogout}>
                 Log out
               </button>
             </div>
+
+            {!user.emailVerified && (
+              <div className="menu-verify">
+                <div className="menu-verify-text">
+                  Confirm your email to unlock subscriptions. Check your inbox for the link.
+                </div>
+                <button className="menu-verify-btn" disabled={busy} onClick={resendVerify}>
+                  Resend email
+                </button>
+              </div>
+            )}
 
             <div className="menu-section">
               <div className="menu-heading">Tools</div>

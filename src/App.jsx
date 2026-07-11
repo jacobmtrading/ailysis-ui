@@ -71,13 +71,19 @@ export default function App() {
 
   // Restore session + finish a Stripe checkout if we were redirected back.
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    // Coming back from an email-confirmation link.
+    const verified = params.get('verified')
+    if (verified !== null) {
+      setMenuOpen(true)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
     if (!account.getToken()) return
     account
       .me()
       .then(async (d) => {
         if (!d.user) return account.setToken(null)
         setUser(d.user)
-        const params = new URLSearchParams(window.location.search)
         const sid = params.get('session_id')
         if (sid) {
           try {

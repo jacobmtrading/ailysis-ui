@@ -5,14 +5,17 @@ import {
   saveUsers,
   hashPassword,
   verifyPassword,
-  validUsername,
+  validEmail,
+  nameFromEmail,
   createSession,
   destroySession,
+  createVerifyToken,
   sessionUser,
   publicUser,
-  adminUsername,
+  adminEmail,
   TIER_RANK,
 } from './_lib/auth.js'
+import { sendVerificationEmail } from './_lib/mail.js'
 import { json } from './_lib/http.js'
 
 export default async function handler(req, res) {
@@ -23,41 +26,63 @@ export default async function handler(req, res) {
       return json(res, 200, { user: publicUser(sess.username, sess.user) })
     }
 
-    const { action, username, password, code } = req.body || {}
+    const { action, email, password, code } = req.body || {}
 
     if (action === 'register') {
-      if (!validUsername(username)) return json(res, 400, { error: 'Username: 3-20 letters, numbers or _' })
+      if (!validEmail(email)) return json(res, 400, { error: 'Enter a valid email address' })
       if (typeof password !== 'string' || password.length < 6)
         return json(res, 400, { error: 'Password must be at least 6 characters' })
       const db = await loadUsers()
-      const key = username.toLowerCase()
-      if (db.users[key]) return json(res, 409, { error: 'Username already taken' })
+      const key = email.trim().toLowerCase()
+      if (db.users[key]) return json(res, 409, { error: 'An account with this email already exists' })
       db.users[key] = {
-        name: username,
+        email: key,
+        name: nameFromEmail(key),
         pass: hashPassword(password),
         tier: 'free',
-        role: key === adminUsername() ? 'admin' : 'user',
+        role: key === adminEmail() ? 'admin' : 'user',
+        emailVerified: false,
         createdAt: Date.now(),
       }
       await saveUsers(db)
+      // Fire off the confirmation email; don't fail signup if mail is flaky.
+      try {
+        const vtoken = await createVerifyToken(key)
+        await sendVerificationEmail(key, vtoken)
+      } catch (e) {
+        console.error('verification email failed:', e.message)
+      }
       const token = await createSession(key)
       return json(res, 200, { token, user: publicUser(key, db.users[key]) })
     }
 
     if (action === 'login') {
       const db = await loadUsers()
-      const key = String(username || '').toLowerCase()
+      const key = String(email || '').trim().toLowerCase()
       const user = db.users[key]
       if (!user || !verifyPassword(password || '', user.pass)) {
-        return json(res, 401, { error: 'Wrong username or password' })
+        return json(res, 401, { error: 'Wrong email or password' })
       }
       // Bootstrap/refresh admin role from env.
-      if (key === adminUsername() && user.role !== 'admin') {
+      if (key === adminEmail() && user.role !== 'admin') {
         user.role = 'admin'
         await saveUsers(db)
       }
       const token = await createSession(key)
       return json(res, 200, { token, user: publicUser(key, user) })
+    }
+
+    if (action === 'resend') {
+      const sess = await sessionUser(req)
+      if (!sess) return json(res, 401, { error: 'Log in first' })
+      if (sess.user.emailVerified) return json(res, 200, { ok: true, alreadyVerified: true })
+      try {
+        const vtoken = await createVerifyToken(sess.username)
+        await sendVerificationEmail(sess.username, vtoken)
+      } catch (e) {
+        return json(res, 502, { error: 'Could not send email right now — try again shortly' })
+      }
+      return json(res, 200, { ok: true })
     }
 
     if (action === 'logout') {

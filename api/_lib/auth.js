@@ -1,11 +1,14 @@
-// Users, sessions, codes — stored in Upstash Redis. No email, just
-// username + password (scrypt-hashed). Sessions are random tokens with TTL.
+// Users, sessions, codes — stored in Upstash Redis. Identity is email +
+// password (scrypt-hashed). Sessions are random tokens with TTL. Email
+// verification tokens are random and single-use with a 24h TTL.
 import crypto from 'node:crypto'
 import { getJSON, setJSON } from './redis.js'
 
 const USERS_KEY = 'ailysis:users'
 const SESS_PREFIX = 'ailysis:sess:'
+const VERIFY_PREFIX = 'ailysis:verify:'
 const SESS_TTL_S = 30 * 86400 // 30 days
+const VERIFY_TTL_S = 24 * 3600 // 24 hours
 
 export const TIER_RANK = { free: 0, premium: 1, tailormade: 2 }
 
@@ -47,16 +50,22 @@ export async function saveUsers(db) {
   await setJSON(USERS_KEY, db)
 }
 
-export function validUsername(u) {
-  return typeof u === 'string' && /^[a-zA-Z0-9_]{3,20}$/.test(u)
+// Practical email check: something@something.tld, no spaces, sane length.
+export function validEmail(e) {
+  return typeof e === 'string' && e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)
+}
+
+// Display name derived from an email when the user hasn't set their own.
+export function nameFromEmail(email) {
+  return String(email || '').split('@')[0] || 'you'
 }
 
 export function isAdmin(user) {
   return user?.role === 'admin'
 }
 
-export function adminUsername() {
-  return (process.env.ADMIN_USERNAME || '').trim().toLowerCase()
+export function adminEmail() {
+  return (process.env.ADMIN_EMAIL || '').trim().toLowerCase()
 }
 
 // ---- sessions ----
@@ -86,6 +95,22 @@ export async function sessionUser(req) {
   }
 }
 
+// ---- email verification tokens (single-use, 24h TTL) ----
+export async function createVerifyToken(email) {
+  const token = crypto.randomBytes(24).toString('hex')
+  await cmd('SET', VERIFY_PREFIX + token, String(email), 'EX', String(VERIFY_TTL_S))
+  return token
+}
+
+// Returns the email the token was issued for (and deletes it), or null.
+export async function consumeVerifyToken(token) {
+  if (!token) return null
+  const email = await cmd('GET', VERIFY_PREFIX + token)
+  if (!email) return null
+  await cmd('DEL', VERIFY_PREFIX + token)
+  return email
+}
+
 // ---- per-user data (personal chats + usage) ----
 const UDATA_PREFIX = 'ailysis:user:'
 
@@ -100,6 +125,14 @@ export async function saveUserData(username, data) {
   await setJSON(UDATA_PREFIX + username, data)
 }
 
-export function publicUser(username, user) {
-  return { username, tier: user.tier || 'free', role: user.role || 'user', createdAt: user.createdAt }
+export function publicUser(key, user) {
+  const email = user.email || key
+  return {
+    email,
+    name: user.name || nameFromEmail(email),
+    tier: user.tier || 'free',
+    role: user.role || 'user',
+    emailVerified: !!user.emailVerified,
+    createdAt: user.createdAt,
+  }
 }

@@ -78,6 +78,9 @@ export default async function handler(req, res) {
     const { action, plan, sessionId } = req.body || {}
 
     if (action === 'checkout') {
+      // Soft gate: require a confirmed email before taking money.
+      if (!sess.user.emailVerified)
+        return json(res, 403, { error: 'Please confirm your email before subscribing', needsVerify: true })
       const productId = STRIPE_PRODUCTS[plan]
       if (!productId) return json(res, 400, { error: 'unknown plan' })
       const info = await resolvePlan(productId)
