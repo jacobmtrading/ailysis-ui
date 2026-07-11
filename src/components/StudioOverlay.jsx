@@ -7,7 +7,7 @@ const THEMES = ['Momentum', 'Value', 'Growth', 'Dividends', 'Picks & Shovels', '
 const TIER_RANK = { free: 0, premium: 1, tailormade: 2 }
 const TIER_LABEL = { premium: 'Premium', tailormade: 'Tailormade' }
 
-export default function StudioOverlay({ open, user, onOpenChat, onClose }) {
+export default function StudioOverlay({ open, user, onOpenChat, onUpgrade, onClose }) {
   const [tab, setTab] = useState('analyze')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
@@ -220,9 +220,9 @@ export default function StudioOverlay({ open, user, onOpenChat, onClose }) {
         )}
 
         {upsell && (
-          <div className="menu-msg upsell">
-            🔒 Upgrade to {TIER_LABEL[upsell]} in the ☰ menu to run this — you can keep exploring the inputs meanwhile.
-          </div>
+          <button className="upsell-btn" onClick={() => onUpgrade(upsell)}>
+            Upgrade to {TIER_LABEL[upsell]} for this feature
+          </button>
         )}
         {err && <div className="menu-msg err">{err}</div>}
 

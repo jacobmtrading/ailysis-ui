@@ -34,7 +34,7 @@ function priceLabel(p) {
   return `${amt}${INTERVAL_SUFFIX[p.interval] || ''}`
 }
 
-export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio, onOpenAdmin }) {
+export default function MenuOverlay({ open, user, onUser, expandTier, onClose, onOpenStudio, onOpenAdmin }) {
   const [mode, setMode] = useState('login') // login | register
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -49,6 +49,11 @@ export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio,
       api.plans().then((d) => setPlans(d.plans || [])).catch(() => setPlans([]))
     }
   }, [open, user, plans])
+
+  // When arriving from an "Upgrade to X" prompt, expand that tier's plans.
+  useEffect(() => {
+    if (open && expandTier) setExpandedTier(expandTier)
+  }, [open, expandTier])
 
   if (!open) return null
 

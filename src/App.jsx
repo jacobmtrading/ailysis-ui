@@ -53,6 +53,7 @@ export default function App() {
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [allOpen, setAllOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [menuExpandTier, setMenuExpandTier] = useState(null)
   const [studioOpen, setStudioOpen] = useState(false)
   const [adminOpen, setAdminOpen] = useState(false)
   const [user, setUser] = useState(null)
@@ -245,11 +246,25 @@ export default function App() {
         open={menuOpen}
         user={user}
         onUser={setUser}
-        onClose={() => setMenuOpen(false)}
+        expandTier={menuExpandTier}
+        onClose={() => {
+          setMenuOpen(false)
+          setMenuExpandTier(null)
+        }}
         onOpenStudio={() => setStudioOpen(true)}
         onOpenAdmin={() => setAdminOpen(true)}
       />
-      <StudioOverlay open={studioOpen} user={user} onOpenChat={setActiveOrder} onClose={() => setStudioOpen(false)} />
+      <StudioOverlay
+        open={studioOpen}
+        user={user}
+        onOpenChat={setActiveOrder}
+        onUpgrade={(tier) => {
+          setStudioOpen(false)
+          setMenuExpandTier(tier)
+          setMenuOpen(true)
+        }}
+        onClose={() => setStudioOpen(false)}
+      />
       <AdminOverlay open={adminOpen} onClose={() => setAdminOpen(false)} />
       <ChatOverlay order={activeOrder} onClose={() => setActiveOrder(null)} />
     </div>
