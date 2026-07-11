@@ -107,7 +107,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onClose }) {
                     disabled={busy}
                     onClick={() => run(() => api.analyzeStock(m.t))}
                   >
-                    {busy ? '…' : `▶︎ ${m.t} — ${m.n} (${m.type === 'etf' ? 'ETF' : m.ind})`}
+                    {busy ? '…' : `${m.t} — ${m.n} (${m.type === 'etf' ? 'ETF' : m.ind})`}
                   </button>
                 ))}
               </>
@@ -163,7 +163,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onClose }) {
                   disabled={busy}
                   onClick={() => run(() => api.buildPortfolio({ timeSpan, volatility, maxPosPct, sectors, themes, assetClass }))}
                 >
-                  {busy ? 'The board is working…' : '🧱 Build my portfolio'}
+                  {busy ? 'The board is working…' : 'Build my portfolio'}
                 </button>
               </>
             )}
@@ -202,7 +202,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onClose }) {
                   disabled={busy}
                   onClick={() => run(() => api.evaluatePortfolio(rows.filter((r) => r.ticker && r.weightPct)))}
                 >
-                  {busy ? 'The board is deliberating…' : '🩺 Evaluate my portfolio'}
+                  {busy ? 'The board is deliberating…' : 'Evaluate my portfolio'}
                 </button>
               </>
             )}
@@ -220,7 +220,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onClose }) {
                 className="menu-link"
                 onClick={() => onOpenChat({ ticker: c.ticker, name: c.name, source: c.source, chat: c.messages })}
               >
-                💬 {c.name} · {new Date(c.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {c.name} · {new Date(c.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </button>
             ))}
           </div>

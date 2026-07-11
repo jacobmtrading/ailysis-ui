@@ -180,7 +180,7 @@ export default function App() {
             {data.orders.length ? (
               data.orders.slice(0, 8).map((o) => <OrderRow key={o.id} order={o} onOpen={setActiveOrder} />)
             ) : (
-              <div className="empty-note">No orders yet — the board is watching the market. 🤖</div>
+              <div className="empty-note">No orders yet — the board is watching the market.</div>
             )}
           </div>
 

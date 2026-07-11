@@ -1321,3 +1321,12 @@ body {
   color: var(--green);
   font-variant-numeric: tabular-nums;
 }
+
+/* collapsed subscription — tier feature descriptions */
+.tier-offer { margin-bottom: 12px; }
+.offer-feature { margin-bottom: 10px; }
+.offer-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.offer-tag { font-weight: 600; color: var(--muted); }
+.offer-desc { font-size: 13px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+.offer-list { margin: 5px 0 0; padding-left: 18px; }
+.offer-list li { font-size: 13px; color: var(--muted); line-height: 1.55; }

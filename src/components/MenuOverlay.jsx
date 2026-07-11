@@ -3,9 +3,29 @@ import * as api from '../account'
 
 const TIER_LABEL = { free: 'Free', premium: 'Premium', tailormade: 'Tailormade' }
 const TIER_RANK = { free: 0, premium: 1, tailormade: 2 }
-const TIER_OFFERS = {
-  premium: '🎯 Personalized board analysis of any stock or ETF',
-  tailormade: '🧱 Portfolio builder & 🩺 portfolio check — plus everything in Premium',
+const OFFER_CONTENT = {
+  premium: [
+    { name: 'Personalized board analysis', desc: 'Let the board debate any stock or ETF you pick and give you a verdict.' },
+  ],
+  tailormade: [
+    { name: 'Personalized board analysis', tag: 'Premium' },
+    {
+      name: 'Portfolio builder',
+      desc: 'Build a portfolio based on:',
+      list: [
+        'Time span',
+        'Volatility range',
+        'Diversification (max position size)',
+        'Preferred sectors',
+        'Themes (momentum, value, picks & shovels…)',
+        'Asset class',
+      ],
+    },
+    {
+      name: 'Portfolio check',
+      desc: 'Submit your own portfolio and the board evaluates it — strengths, risks and a 1–10 score.',
+    },
+  ],
 }
 const INTERVAL_SUFFIX = { month: '/mo', year: '/yr', lifetime: ' once' }
 
@@ -58,7 +78,7 @@ export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio,
   }
 
   const submitCode = async () => {
-    const out = await run(() => api.redeemCode(code.trim()), 'Code applied! 🎉')
+    const out = await run(() => api.redeemCode(code.trim()), 'Code applied!')
     if (out?.user) onUser(out.user)
     setCode('')
   }
@@ -136,13 +156,13 @@ export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio,
             <div className="menu-section">
               <div className="menu-heading">Tools</div>
               <button className="menu-link" onClick={onOpenStudio}>
-                🎯 Personalized analysis {user.tier === 'free' ? '🔒' : ''}
+                Personalized analysis {user.tier === 'free' ? '🔒' : ''}
               </button>
               <button className="menu-link" onClick={onOpenStudio}>
-                🧱 Portfolio builder {user.tier !== 'tailormade' ? '🔒' : ''}
+                Portfolio builder {user.tier !== 'tailormade' ? '🔒' : ''}
               </button>
               <button className="menu-link" onClick={onOpenStudio}>
-                🩺 Check my portfolio {user.tier !== 'tailormade' ? '🔒' : ''}
+                Check my portfolio {user.tier !== 'tailormade' ? '🔒' : ''}
               </button>
             </div>
 
@@ -174,7 +194,24 @@ export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio,
                     return (
                       <div className="plan-group" key={tierKey}>
                         <div className="plan-tier-name">{TIER_LABEL[tierKey]}</div>
-                        <div className="menu-note">{TIER_OFFERS[tierKey]}</div>
+                        <div className="tier-offer">
+                          {OFFER_CONTENT[tierKey].map((f, i) => (
+                            <div className="offer-feature" key={i}>
+                              <div className="offer-name">
+                                {f.name}
+                                {f.tag && <span className="offer-tag"> ({f.tag})</span>}
+                              </div>
+                              {f.desc && <div className="offer-desc">{f.desc}</div>}
+                              {f.list && (
+                                <ul className="offer-list">
+                                  {f.list.map((x, j) => (
+                                    <li key={j}>{x}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                         {!open ? (
                           <button
                             className={`menu-primary ${tierKey === 'tailormade' ? 'dark' : ''}`}
@@ -203,7 +240,7 @@ export default function MenuOverlay({ open, user, onUser, onClose, onOpenStudio,
             {user.role === 'admin' && (
               <div className="menu-section">
                 <button className="menu-link" onClick={onOpenAdmin}>
-                  🛠 Admin panel
+                  Admin panel
                 </button>
               </div>
             )}
