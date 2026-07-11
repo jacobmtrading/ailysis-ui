@@ -21,6 +21,12 @@ export const login = (email, password) =>
 export const logout = () => call('/api/auth', { method: 'POST', body: { action: 'logout' } })
 export const resendVerification = () =>
   call('/api/auth', { method: 'POST', body: { action: 'resend' } })
+export const loginLink = (email) =>
+  call('/api/auth', { method: 'POST', body: { action: 'loginlink', email } })
+export const forgotPassword = (email) =>
+  call('/api/auth', { method: 'POST', body: { action: 'forgot', email } })
+export const resetPassword = (token, password) =>
+  call('/api/auth', { method: 'POST', body: { action: 'reset', token, password } })
 export const me = () => call('/api/auth')
 export const redeemCode = (code) => call('/api/auth', { method: 'POST', body: { action: 'code', code } })
 

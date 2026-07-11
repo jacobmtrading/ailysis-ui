@@ -34,6 +34,49 @@ async function send({ to, subject, html, text }) {
   return res.json()
 }
 
+function emailShell(heading, bodyHtml) {
+  return `
+    <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#111">
+      <h2 style="margin:0 0 12px">${heading}</h2>
+      ${bodyHtml}
+    </div>`
+}
+
+function ctaButton(link, label) {
+  return `
+    <p style="margin:0 0 24px">
+      <a href="${link}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600">${label}</a>
+    </p>
+    <p style="margin:0 0 8px;font-size:13px;color:#666">Or paste this link into your browser:</p>
+    <p style="margin:0 0 20px;font-size:13px;word-break:break-all"><a href="${link}">${link}</a></p>`
+}
+
+export async function sendLoginLinkEmail(email, token) {
+  const link = `${appUrl()}/api/login-link?token=${encodeURIComponent(token)}`
+  const subject = 'Your Ailysis login link'
+  const text = `Log in to Ailysis with this link (expires in 15 minutes):\n${link}\n\nIf you didn't request this, you can ignore this email.`
+  const html = emailShell(
+    'Log in to Ailysis',
+    `<p style="margin:0 0 20px;line-height:1.5;color:#333">Click the button below to log in. No password needed.</p>` +
+      ctaButton(link, 'Log in') +
+      `<p style="margin:0;font-size:12px;color:#999">This link expires in 15 minutes. If you didn't request it, you can ignore this email.</p>`,
+  )
+  return send({ to: email, subject, html, text })
+}
+
+export async function sendPasswordResetEmail(email, token) {
+  const link = `${appUrl()}/?reset=${encodeURIComponent(token)}`
+  const subject = 'Reset your Ailysis password'
+  const text = `Reset your Ailysis password with this link (expires in 30 minutes):\n${link}\n\nIf you didn't request this, you can ignore this email — your password won't change.`
+  const html = emailShell(
+    'Reset your password',
+    `<p style="margin:0 0 20px;line-height:1.5;color:#333">Click below to choose a new password.</p>` +
+      ctaButton(link, 'Reset password') +
+      `<p style="margin:0;font-size:12px;color:#999">This link expires in 30 minutes. If you didn't request it, ignore this email — your password won't change.</p>`,
+  )
+  return send({ to: email, subject, html, text })
+}
+
 export async function sendVerificationEmail(email, token) {
   const link = `${appUrl()}/api/verify?token=${encodeURIComponent(token)}`
   const subject = 'Confirm your email for Ailysis'

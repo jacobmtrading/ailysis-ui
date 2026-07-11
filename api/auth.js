@@ -10,12 +10,15 @@ import {
   createSession,
   destroySession,
   createVerifyToken,
+  createLoginToken,
+  createResetToken,
+  consumeResetToken,
   sessionUser,
   publicUser,
   adminEmail,
   TIER_RANK,
 } from './_lib/auth.js'
-import { sendVerificationEmail } from './_lib/mail.js'
+import { sendVerificationEmail, sendLoginLinkEmail, sendPasswordResetEmail } from './_lib/mail.js'
 import { json } from './_lib/http.js'
 
 export default async function handler(req, res) {
@@ -68,6 +71,57 @@ export default async function handler(req, res) {
         user.role = 'admin'
         await saveUsers(db)
       }
+      const token = await createSession(key)
+      return json(res, 200, { token, user: publicUser(key, user) })
+    }
+
+    if (action === 'loginlink') {
+      // Passwordless login: email a one-time link. Always report success so we
+      // don't reveal whether an account exists.
+      const key = String(email || '').trim().toLowerCase()
+      if (validEmail(key)) {
+        const db = await loadUsers()
+        if (db.users[key]) {
+          try {
+            const ltoken = await createLoginToken(key)
+            await sendLoginLinkEmail(key, ltoken)
+          } catch (e) {
+            console.error('login link email failed:', e.message)
+          }
+        }
+      }
+      return json(res, 200, { ok: true })
+    }
+
+    if (action === 'forgot') {
+      // Password reset request: same no-enumeration behaviour.
+      const key = String(email || '').trim().toLowerCase()
+      if (validEmail(key)) {
+        const db = await loadUsers()
+        if (db.users[key]) {
+          try {
+            const rtoken = await createResetToken(key)
+            await sendPasswordResetEmail(key, rtoken)
+          } catch (e) {
+            console.error('reset email failed:', e.message)
+          }
+        }
+      }
+      return json(res, 200, { ok: true })
+    }
+
+    if (action === 'reset') {
+      const { token: resetToken } = req.body || {}
+      if (typeof password !== 'string' || password.length < 6)
+        return json(res, 400, { error: 'Password must be at least 6 characters' })
+      const key = await consumeResetToken(resetToken)
+      if (!key) return json(res, 400, { error: 'This reset link is invalid or has expired' })
+      const db = await loadUsers()
+      const user = db.users[key]
+      if (!user) return json(res, 404, { error: 'Account no longer exists' })
+      user.pass = hashPassword(password)
+      user.emailVerified = true // clicking a mailed link proves ownership
+      await saveUsers(db)
       const token = await createSession(key)
       return json(res, 200, { token, user: publicUser(key, user) })
     }

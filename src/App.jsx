@@ -57,6 +57,7 @@ export default function App() {
   const [studioOpen, setStudioOpen] = useState(false)
   const [adminOpen, setAdminOpen] = useState(false)
   const [user, setUser] = useState(null)
+  const [resetToken, setResetToken] = useState(null)
 
   useEffect(() => {
     let mounted = true
@@ -69,15 +70,34 @@ export default function App() {
     }
   }, [])
 
-  // Restore session + finish a Stripe checkout if we were redirected back.
+  // Restore session + handle links we may have been redirected from
+  // (email verify, magic login, password reset, Stripe checkout).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    // Coming back from an email-confirmation link.
-    const verified = params.get('verified')
-    if (verified !== null) {
+    const cleanUrl = () => window.history.replaceState({}, '', window.location.pathname)
+
+    // Magic-link login: the API redirected here with a fresh session token.
+    const magicToken = params.get('token')
+    if (magicToken) {
+      account.setToken(magicToken)
       setMenuOpen(true)
-      window.history.replaceState({}, '', window.location.pathname)
     }
+
+    // Password-reset link: show the "set a new password" form in the menu.
+    const reset = params.get('reset')
+    if (reset) {
+      setResetToken(reset)
+      setMenuOpen(true)
+    }
+
+    // Coming back from an email-confirmation link, or an expired magic link.
+    if (params.get('verified') !== null || params.get('login') !== null) {
+      setMenuOpen(true)
+    }
+    if (magicToken || reset || params.get('verified') !== null || params.get('login') !== null) {
+      cleanUrl()
+    }
+
     if (!account.getToken()) return
     account
       .me()
@@ -253,9 +273,12 @@ export default function App() {
         user={user}
         onUser={setUser}
         expandTier={menuExpandTier}
+        resetToken={resetToken}
+        onResetDone={() => setResetToken(null)}
         onClose={() => {
           setMenuOpen(false)
           setMenuExpandTier(null)
+          setResetToken(null)
         }}
         onOpenStudio={() => setStudioOpen(true)}
         onOpenAdmin={() => setAdminOpen(true)}

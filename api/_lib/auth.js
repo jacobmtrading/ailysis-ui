@@ -7,8 +7,12 @@ import { getJSON, setJSON } from './redis.js'
 const USERS_KEY = 'ailysis:users'
 const SESS_PREFIX = 'ailysis:sess:'
 const VERIFY_PREFIX = 'ailysis:verify:'
+const LOGIN_PREFIX = 'ailysis:login:'
+const RESET_PREFIX = 'ailysis:reset:'
 const SESS_TTL_S = 30 * 86400 // 30 days
 const VERIFY_TTL_S = 24 * 3600 // 24 hours
+const LOGIN_TTL_S = 15 * 60 // 15 minutes
+const RESET_TTL_S = 30 * 60 // 30 minutes
 
 export const TIER_RANK = { free: 0, premium: 1, tailormade: 2 }
 
@@ -95,21 +99,30 @@ export async function sessionUser(req) {
   }
 }
 
-// ---- email verification tokens (single-use, 24h TTL) ----
-export async function createVerifyToken(email) {
+// ---- single-use email tokens (verify / magic-login / password-reset) ----
+async function makeToken(prefix, email, ttl) {
   const token = crypto.randomBytes(24).toString('hex')
-  await cmd('SET', VERIFY_PREFIX + token, String(email), 'EX', String(VERIFY_TTL_S))
+  await cmd('SET', prefix + token, String(email), 'EX', String(ttl))
   return token
 }
 
 // Returns the email the token was issued for (and deletes it), or null.
-export async function consumeVerifyToken(token) {
+async function takeToken(prefix, token) {
   if (!token) return null
-  const email = await cmd('GET', VERIFY_PREFIX + token)
+  const email = await cmd('GET', prefix + token)
   if (!email) return null
-  await cmd('DEL', VERIFY_PREFIX + token)
+  await cmd('DEL', prefix + token)
   return email
 }
+
+export const createVerifyToken = (email) => makeToken(VERIFY_PREFIX, email, VERIFY_TTL_S)
+export const consumeVerifyToken = (token) => takeToken(VERIFY_PREFIX, token)
+
+export const createLoginToken = (email) => makeToken(LOGIN_PREFIX, email, LOGIN_TTL_S)
+export const consumeLoginToken = (token) => takeToken(LOGIN_PREFIX, token)
+
+export const createResetToken = (email) => makeToken(RESET_PREFIX, email, RESET_TTL_S)
+export const consumeResetToken = (token) => takeToken(RESET_PREFIX, token)
 
 // ---- per-user data (personal chats + usage) ----
 const UDATA_PREFIX = 'ailysis:user:'

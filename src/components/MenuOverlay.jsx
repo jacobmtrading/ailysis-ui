@@ -34,10 +34,11 @@ function priceLabel(p) {
   return `${amt}${INTERVAL_SUFFIX[p.interval] || ''}`
 }
 
-export default function MenuOverlay({ open, user, onUser, expandTier, onClose, onOpenStudio, onOpenAdmin }) {
+export default function MenuOverlay({ open, user, onUser, expandTier, resetToken, onResetDone, onClose, onOpenStudio, onOpenAdmin }) {
   const [mode, setMode] = useState('login') // login | register
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -84,6 +85,27 @@ export default function MenuOverlay({ open, user, onUser, expandTier, onClose, o
     if (out?.alreadyVerified && user) onUser({ ...user, emailVerified: true })
   }
 
+  const sendMagicLink = async () => {
+    if (!email.trim()) return setMsg({ ok: false, text: 'Enter your email first' })
+    await run(() => api.loginLink(email.trim()), 'If an account exists, a login link is on its way.')
+  }
+
+  const sendForgot = async () => {
+    if (!email.trim()) return setMsg({ ok: false, text: 'Enter your email first' })
+    await run(() => api.forgotPassword(email.trim()), 'If an account exists, a reset link is on its way.')
+  }
+
+  const submitReset = async () => {
+    const out = await run(() => api.resetPassword(resetToken, newPassword))
+    if (out?.token) {
+      api.setToken(out.token)
+      onUser(out.user)
+      setNewPassword('')
+      onResetDone?.()
+      setMsg({ ok: true, text: 'Password updated — you\'re logged in.' })
+    }
+  }
+
   const submitCode = async () => {
     const out = await run(() => api.redeemCode(code.trim()), 'Code applied!')
     if (out?.user) onUser(out.user)
@@ -110,11 +132,27 @@ export default function MenuOverlay({ open, user, onUser, expandTier, onClose, o
             <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <div className="pos-header-title">{user ? 'Account' : 'Log in'}</div>
+        <div className="pos-header-title">{resetToken ? 'Reset password' : user ? 'Account' : 'Log in'}</div>
       </header>
 
       <div className="menu-body">
-        {!user && (
+        {resetToken && (
+          <>
+            <div className="menu-note">Choose a new password for your account.</div>
+            <input
+              className="menu-input"
+              placeholder="New password (min. 6 characters)"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <button className="menu-primary" disabled={busy || newPassword.length < 6} onClick={submitReset}>
+              {busy ? '…' : 'Set new password'}
+            </button>
+          </>
+        )}
+
+        {!user && !resetToken && (
           <>
             <div className="menu-tabs">
               <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>
@@ -147,11 +185,22 @@ export default function MenuOverlay({ open, user, onUser, expandTier, onClose, o
             {mode === 'register' && (
               <div className="menu-note">We'll email you a link to confirm your address.</div>
             )}
+            {mode === 'login' && (
+              <div className="menu-altauth">
+                <button className="menu-linkbtn" disabled={busy} onClick={sendMagicLink}>
+                  Email me a login link
+                </button>
+                <span className="menu-altsep">·</span>
+                <button className="menu-linkbtn" disabled={busy} onClick={sendForgot}>
+                  Forgot password?
+                </button>
+              </div>
+            )}
             <div className="menu-note">Have a friends & family code? Log in first, then redeem it here.</div>
           </>
         )}
 
-        {user && (
+        {user && !resetToken && (
           <>
             <div className="menu-userrow">
               <div className="menu-avatar">{(user.name || user.email).slice(0, 2).toUpperCase()}</div>
