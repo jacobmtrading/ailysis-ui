@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import * as api from '../account'
+import LoadingFun from './LoadingFun'
 import { UNIVERSE } from '../../api/_lib/universe.js'
+
+const TOOL_LABEL = { map: 'Risk map', swot: 'SWOT', stress: 'Stress test' }
 
 const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer', 'Industrials', 'Aerospace & Defence', 'Communication']
 const THEMES = ['Momentum', 'Value', 'Growth', 'Dividends', 'Picks & Shovels', 'Defensive']
@@ -13,6 +16,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
   const [err, setErr] = useState(null)
   const [upsell, setUpsell] = useState(null)
   const [mine, setMine] = useState([])
+  const [activity, setActivity] = useState([])
   const [lastCtx, setLastCtx] = useState(null)
 
   // analyze
@@ -29,6 +33,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
 
   useEffect(() => {
     if (open && user) api.myChats().then((d) => setMine(d.chats || [])).catch(() => {})
+    if (open) setActivity(api.localSessions())
   }, [open, user])
 
   const tier = user?.tier || 'free'
@@ -42,7 +47,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
 
   const locked = (need) => TIER_RANK[tier] < TIER_RANK[need]
 
-  const run = async (fn) => {
+  const run = async (fn, note) => {
     setBusy(true)
     setErr(null)
     try {
@@ -50,7 +55,8 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
       if (out?.chat) {
         setMine((m) => [out.chat, ...m])
         if (out.chat.positions?.length) setLastCtx({ items: out.chat.positions, label: out.chat.name })
-        onOpenChat({ ticker: out.chat.ticker, name: out.chat.name, source: out.chat.source, chat: out.chat.messages })
+        setActivity(api.localSessions()) // server chat already logs; keep list fresh
+        onOpenChat({ ticker: out.chat.ticker, name: out.chat.name, source: out.chat.source, chat: out.chat.messages, live: true })
       }
     } catch (e) {
       setErr(e.message)
@@ -72,36 +78,61 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
     run(fn)
   }
 
+  // "My sessions" merges server-side board chats with locally-logged insight
+  // opens, each tagged with a note of what it was, newest first.
+  const sessions = useMemo(() => {
+    const fromChats = mine.map((c) => ({
+      id: c.id,
+      name: c.name,
+      time: c.time,
+      note: c.source || 'Board discussion',
+      open: () => onOpenChat({ ticker: c.ticker, name: c.name, source: c.source, chat: c.messages }),
+    }))
+    const fromActivity = activity.map((a) => ({
+      id: a.id,
+      name: a.name,
+      time: a.time,
+      note: a.note,
+      open: () => a.ctx && onOpenInsights(a.ctx),
+    }))
+    return [...fromChats, ...fromActivity].sort((x, y) => y.time - x.time).slice(0, 12)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mine, activity])
+
   const pickTab = (t) => {
     setTab(t)
     setUpsell(null)
     setErr(null)
   }
 
-  // Premium insight tools (risk map / SWOT / stress test) for a given subject.
-  const openTool = (view, items, label, need) => {
-    if (locked(need)) {
-      setUpsell(need)
+  // Whichever subject the insight tools should act on, derived from the active
+  // tab (a searched stock / an entered portfolio) with the last run as fallback.
+  const filledRows = rows.filter((r) => r.ticker && r.weightPct)
+  const subject = useMemo(() => {
+    if (tab === 'analyze' && matches[0])
+      return { items: [{ ticker: matches[0].t, weightPct: 100 }], label: `${matches[0].t} — ${matches[0].n}`, need: 'premium' }
+    if (tab === 'check' && filledRows.length >= 1)
+      return { items: filledRows.map((r) => ({ ticker: r.ticker, weightPct: +r.weightPct })), label: 'My portfolio', need: 'tailormade' }
+    if (lastCtx) return { items: lastCtx.items, label: lastCtx.label, need: lastCtx.items.length > 1 ? 'tailormade' : 'premium' }
+    return null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, matches, rows, lastCtx])
+
+  // Premium insight tools (risk map / SWOT / stress test) for the active subject.
+  const openTool = (view) => {
+    if (!subject) {
+      setErr('Search a stock (Analyze) or enter positions (Check) first, then open an insight tool.')
       return
     }
-    onOpenInsights({ view, items, label })
+    if (locked(subject.need)) {
+      setUpsell(subject.need)
+      return
+    }
+    setErr(null)
+    api.logSession({ name: subject.label, note: TOOL_LABEL[view], ctx: { view, items: subject.items, label: subject.label } })
+    setActivity(api.localSessions())
+    onOpenInsights({ view, items: subject.items, label: subject.label })
   }
-  const toolRow = (items, label, need) => (
-    <div className="menu-section ins-launch">
-      <div className="menu-heading">Insight tools · {label}</div>
-      <div className="chip-row">
-        <button className="chip" onClick={() => openTool('map', items, label, need)}>
-          🧭 Risk map{locked(need) ? ' 🔒' : ''}
-        </button>
-        <button className="chip" onClick={() => openTool('swot', items, label, need)}>
-          🧩 SWOT{locked(need) ? ' 🔒' : ''}
-        </button>
-        <button className="chip" onClick={() => openTool('stress', items, label, need)}>
-          ⚡ Stress test{locked(need) ? ' 🔒' : ''}
-        </button>
-      </div>
-    </div>
-  )
 
   return (
     <div className="studio-overlay">
@@ -112,22 +143,34 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
           </svg>
         </button>
         <div className="pos-header-info">
-          <div className="pos-header-title">Board studio</div>
+          <div className="pos-header-title">Discussion room</div>
           <div className="pos-header-sub">Your personal board sessions</div>
         </div>
       </header>
 
-      <div className="menu-tabs studio-tabs">
-        <button className={tab === 'analyze' ? 'active' : ''} onClick={() => pickTab('analyze')}>
-          Analyze {locked('premium') && '🔒'}
+      <div className="dr-grid">
+        <button className={`dr-cell ${tab === 'analyze' ? 'active' : ''}`} onClick={() => pickTab('analyze')}>
+          Analyze{locked('premium') ? ' · locked' : ''}
         </button>
-        <button className={tab === 'build' ? 'active' : ''} onClick={() => pickTab('build')}>
-          Builder {locked('tailormade') && '🔒'}
+        <button className={`dr-cell ${tab === 'build' ? 'active' : ''}`} onClick={() => pickTab('build')}>
+          Builder{locked('tailormade') ? ' · locked' : ''}
         </button>
-        <button className={tab === 'check' ? 'active' : ''} onClick={() => pickTab('check')}>
-          Check {locked('tailormade') && '🔒'}
+        <button className={`dr-cell ${tab === 'check' ? 'active' : ''}`} onClick={() => pickTab('check')}>
+          Check{locked('tailormade') ? ' · locked' : ''}
+        </button>
+        <button className="dr-cell tool" disabled={!subject} onClick={() => openTool('map')}>
+          Risk map
+        </button>
+        <button className="dr-cell tool" disabled={!subject} onClick={() => openTool('swot')}>
+          SWOT
+        </button>
+        <button className="dr-cell tool" disabled={!subject} onClick={() => openTool('stress')}>
+          Stress test
         </button>
       </div>
+      {!subject && user && (
+        <div className="dr-toolhint">Insight tools use a stock you search under Analyze or the positions you enter under Check.</div>
+      )}
 
       <div className="menu-body">
         {!user && <div className="menu-note">Log in first (☰ menu) to use the board studio.</div>}
@@ -136,7 +179,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
           <>
             <div className="menu-heading">Let the board analyze a stock or ETF</div>
             {locked('premium') && (
-              <div className="menu-note">Preview — search freely; upgrade to Premium to run the analysis. 🔒</div>
+              <div className="menu-note">Preview — search freely; upgrade to Premium to run the analysis.</div>
             )}
             <input
               className="menu-input"
@@ -152,11 +195,9 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
                 onClick={() => tryRun('premium', () => api.analyzeStock(m.t))}
               >
                 {busy ? '…' : `${m.t} — ${m.n} (${m.type === 'etf' ? 'ETF' : m.ind})`}
-                {locked('premium') ? ' 🔒' : ''}
+                {locked('premium') ? ' · locked' : ''}
               </button>
             ))}
-            {matches.length > 0 &&
-              toolRow([{ ticker: matches[0].t, weightPct: 100 }], `${matches[0].t} — ${matches[0].n}`, 'premium')}
           </>
         )}
 
@@ -164,7 +205,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
           <>
             <div className="menu-heading">The board builds a portfolio to your spec</div>
             {locked('tailormade') && (
-              <div className="menu-note">Preview — set your criteria; upgrade to Tailormade to build it. 🔒</div>
+              <div className="menu-note">Preview — set your criteria; upgrade to Tailormade to build it.</div>
             )}
             <label className="menu-label">Time span</label>
             <select className="menu-input" value={timeSpan} onChange={(e) => setTimeSpan(e.target.value)}>
@@ -207,7 +248,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
               disabled={busy}
               onClick={() => tryRun('tailormade', () => api.buildPortfolio({ timeSpan, volatility, maxPosPct, sectors, themes, assetClass }))}
             >
-              {busy ? 'The board is working…' : `Build my portfolio${locked('tailormade') ? ' 🔒' : ''}`}
+              {busy ? 'The board is working…' : `Build my portfolio${locked('tailormade') ? ' · locked' : ''}`}
             </button>
           </>
         )}
@@ -216,7 +257,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
           <>
             <div className="menu-heading">The board reviews your own portfolio</div>
             {locked('tailormade') && (
-              <div className="menu-note">Preview — enter your positions; upgrade to Tailormade to run the check. 🔒</div>
+              <div className="menu-note">Preview — enter your positions; upgrade to Tailormade to run the check.</div>
             )}
             {rows.map((r, i) => (
               <div className="menu-coderow" key={i}>
@@ -241,18 +282,14 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
             <button
               className="menu-primary dark"
               disabled={busy}
-              onClick={() => tryRun('tailormade', () => api.evaluatePortfolio(rows.filter((r) => r.ticker && r.weightPct)))}
+              onClick={() => tryRun('tailormade', () => api.evaluatePortfolio(filledRows))}
             >
-              {busy ? 'The board is deliberating…' : `Evaluate my portfolio${locked('tailormade') ? ' 🔒' : ''}`}
+              {busy ? 'The board is deliberating…' : `Evaluate my portfolio${locked('tailormade') ? ' · locked' : ''}`}
             </button>
-            {rows.filter((r) => r.ticker && r.weightPct).length >= 2 &&
-              toolRow(
-                rows.filter((r) => r.ticker && r.weightPct).map((r) => ({ ticker: r.ticker, weightPct: +r.weightPct })),
-                'My portfolio',
-                'tailormade'
-              )}
           </>
         )}
+
+        {busy && <LoadingFun label="The board is convening…" />}
 
         {upsell && (
           <button className="upsell-btn" onClick={() => onUpgrade(upsell)}>
@@ -261,20 +298,15 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
         )}
         {err && <div className="menu-msg err">{err}</div>}
 
-        {user &&
-          lastCtx &&
-          toolRow(lastCtx.items, lastCtx.label, lastCtx.items.length > 1 ? 'tailormade' : 'premium')}
-
-        {user && mine.length > 0 && (
+        {user && sessions.length > 0 && (
           <div className="menu-section">
             <div className="menu-heading">My sessions</div>
-            {mine.slice(0, 10).map((c) => (
-              <button
-                key={c.id}
-                className="menu-link"
-                onClick={() => onOpenChat({ ticker: c.ticker, name: c.name, source: c.source, chat: c.messages })}
-              >
-                {c.name} · {new Date(c.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            {sessions.map((s) => (
+              <button key={s.id} className="menu-link ms-row" onClick={s.open}>
+                <span className="ms-name">
+                  {s.name} · {new Date(s.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+                <span className="ms-note">{s.note}</span>
               </button>
             ))}
           </div>

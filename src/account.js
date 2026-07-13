@@ -47,6 +47,22 @@ export const insightsSwot = (items, label) =>
 export const insightsStress = (items, scenarioId) =>
   call('/api/insights', { method: 'POST', body: { action: 'stress', items, scenarioId } })
 
+// Local activity log — every feature click lands in "My sessions" with a note
+// of what it was, kept client-side so insight-tool opens are tracked too.
+const ACT_KEY = 'ailysis_activity'
+export const localSessions = () => {
+  try {
+    return JSON.parse(localStorage.getItem(ACT_KEY)) || []
+  } catch {
+    return []
+  }
+}
+export const logSession = (entry) => {
+  const next = [{ id: `a-${Date.now()}`, time: Date.now(), ...entry }, ...localSessions()].slice(0, 30)
+  localStorage.setItem(ACT_KEY, JSON.stringify(next))
+  return next[0]
+}
+
 export const adminList = () => call('/api/admin')
 export const adminSetTier = (username, tier) =>
   call('/api/admin', { method: 'POST', body: { action: 'setTier', username, tier } })

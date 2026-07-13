@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { AGENTS } from '../data/agents'
 
 function initials(name) {
@@ -96,11 +97,56 @@ function Bubble({ msg, chat }) {
   )
 }
 
+function TypingBubble({ msg }) {
+  const agent = AGENTS[msg?.from] || AGENTS.mod
+  return (
+    <div className="wa-row">
+      <div className="wa-avatar" style={{ background: agent.avatar }}>
+        {initials(agent.name)}
+      </div>
+      <div className="wa-bubble wa-in wa-typing">
+        <span className="wa-typing-name" style={{ color: agent.color }}>
+          {agent.name.split(' ')[0]} is typing
+        </span>
+        <span className="wa-dots">
+          <i />
+          <i />
+          <i />
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function ChatOverlay({ order, onClose }) {
+  const msgs = order?.chat || []
+  const live = !!order?.live
+  // On a freshly-generated board chat, reveal messages one at a time so the
+  // agents look like they're talking in real time.
+  const [shown, setShown] = useState(0)
+  useEffect(() => {
+    if (!order) return
+    if (!live) {
+      setShown(msgs.length)
+      return
+    }
+    setShown(1)
+    let i = 1
+    const id = setInterval(() => {
+      i += 1
+      setShown(i)
+      if (i >= msgs.length) clearInterval(id)
+    }, 1100)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order])
+
   if (!order) return null
   const participants = ['max', 'valeria', 'kian', 'rayan', 'emilia', 'mod']
     .map((k) => AGENTS[k].name.split(' ')[0])
     .join(', ')
+  const visible = msgs.slice(0, shown)
+  const typingNext = live && shown < msgs.length ? msgs[shown] : null
 
   return (
     <div className="wa-overlay">
@@ -123,12 +169,15 @@ export default function ChatOverlay({ order, onClose }) {
 
       <div className="wa-chat">
         <div className="wa-daydivider"><span>Board convened · {order.source}</span></div>
-        {order.chat.map((m, i) =>
-          m.poll ? <Poll key={i} msg={m} /> : <Bubble key={i} msg={m} chat={order.chat} />
+        {visible.map((m, i) =>
+          m.poll ? <Poll key={i} msg={m} /> : <Bubble key={i} msg={m} chat={msgs} />
         )}
-        <div className="wa-endnote">
-          🔒 Decisions are made by autonomous agents. Not investment advice.
-        </div>
+        {typingNext && !typingNext.poll && <TypingBubble msg={typingNext} />}
+        {shown >= msgs.length && (
+          <div className="wa-endnote">
+            Decisions are made by autonomous agents. Not investment advice.
+          </div>
+        )}
       </div>
 
       <footer className="wa-inputbar">

@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         source: 'Personalized analysis',
         board,
         question: `Would the board buy ${ticker}?`,
-        decisionLine: `${board.closing || ''} Advisory verdict: ${verdict}. Not investment advice. 🎯`,
+        decisionLine: `${board.closing || ''} Advisory verdict: ${verdict}. Not investment advice.`,
       })
       chat.positions = [{ ticker, weightPct: 100 }]
     }

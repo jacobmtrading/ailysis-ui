@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import * as api from '../account'
+import LoadingFun from './LoadingFun'
 import { SCENARIOS } from '../../api/_lib/scenarios.js'
 import { byTicker } from '../../api/_lib/universe.js'
 
@@ -7,11 +8,12 @@ import { byTicker } from '../../api/_lib/universe.js'
 // Three axes, 120° apart. A security's dot is the score-weighted blend of the
 // axis directions (barycentric): all-equal scores land in the center, a single
 // dominant axis pulls the dot out to that rim.
-const VB_W = 760
-const VB_H = 470
-const CX = 380
-const CY = 240
-const R = 180
+// Portrait viewBox — taller than wide so the map reads vertically.
+const VB_W = 470
+const VB_H = 640
+const CX = 235
+const CY = 300
+const R = 188
 const AXES = [
   { key: 'political', label: 'Political dependency', a: -Math.PI / 2 },
   { key: 'momentum', label: 'Momentum / news', a: Math.PI / 6 },
@@ -43,17 +45,6 @@ const IND_COLORS = {
   Communication: '#ef5da8',
 }
 const indColor = (ind) => IND_COLORS[ind] || '#7d8a99'
-
-function useIsPortrait() {
-  const [portrait, setPortrait] = useState(() => window.matchMedia('(orientation: portrait)').matches)
-  useEffect(() => {
-    const mq = window.matchMedia('(orientation: portrait)')
-    const fn = (e) => setPortrait(e.matches)
-    mq.addEventListener('change', fn)
-    return () => mq.removeEventListener('change', fn)
-  }, [])
-  return portrait
-}
 
 // ---------------- Polar map view ----------------
 function PolarMap({ data, weights, showProposals, sel, onSelect, onDismiss }) {
@@ -180,13 +171,13 @@ function PolarMap({ data, weights, showProposals, sel, onSelect, onDismiss }) {
                       {sel.ticker} <span>{sel.name || byTicker[sel.ticker]?.n}</span>
                     </div>
                     <div className="ins-pop-scores">
-                      <span>🏛 {sel.political}</span>
-                      <span>📰 {sel.momentum}</span>
-                      <span>⚖️ {sel.valuation}</span>
+                      <span>Political {sel.political}</span>
+                      <span>Momentum {sel.momentum}</span>
+                      <span>Valuation {sel.valuation}</span>
                     </div>
                     <div className="ins-pop-text">{sel.isProposal ? sel.reason : sel.note || 'No notable single risk flagged.'}</div>
                     <button className="ins-pop-btn" onClick={onDismiss}>
-                      {sel.isProposal ? '✓ Add to my list' : 'Close'}
+                      {sel.isProposal ? 'Add to my list' : 'Close'}
                     </button>
                   </div>
                 </div>
@@ -200,10 +191,10 @@ function PolarMap({ data, weights, showProposals, sel, onSelect, onDismiss }) {
 
 // ---------------- SWOT view ----------------
 const SWOT_QUADRANTS = [
-  { key: 'strengths', title: 'Strengths', emoji: '💪', color: '#06c167' },
-  { key: 'weaknesses', title: 'Weaknesses', emoji: '🩹', color: '#ff3b30' },
-  { key: 'opportunities', title: 'Opportunities', emoji: '🚀', color: '#5b8def' },
-  { key: 'threats', title: 'Threats', emoji: '⚠️', color: '#f2a33c' },
+  { key: 'strengths', title: 'Strengths', color: '#06c167' },
+  { key: 'weaknesses', title: 'Weaknesses', color: '#ff3b30' },
+  { key: 'opportunities', title: 'Opportunities', color: '#5b8def' },
+  { key: 'threats', title: 'Threats', color: '#f2a33c' },
 ]
 
 function SwotGrid({ data }) {
@@ -211,9 +202,7 @@ function SwotGrid({ data }) {
     <div className="swot-grid">
       {SWOT_QUADRANTS.map((q) => (
         <div key={q.key} className="swot-cell" style={{ '--qc': q.color }}>
-          <div className="swot-cell-title">
-            {q.emoji} {q.title}
-          </div>
+          <div className="swot-cell-title">{q.title}</div>
           <ul>
             {(data[q.key] || []).map((line, i) => (
               <li key={i}>{line}</li>
@@ -226,11 +215,34 @@ function SwotGrid({ data }) {
 }
 
 // ---------------- Stress test view ----------------
-const SWARM_ICONS = {
-  'Nations & governments': '🏛️',
-  'Major companies': '🏢',
-  Consumers: '🛒',
-  'Society & markets': '🌍',
+// Vertical impact bars: each position is a column growing up (gain) or down
+// (loss) from a shared centre baseline.
+function ImpactChart({ impacts }) {
+  const max = Math.max(20, ...impacts.map((im) => Math.abs(im.impactPct)))
+  return (
+    <div className="impact-chart">
+      {impacts.map((im) => {
+        const up = im.impactPct >= 0
+        const mag = (Math.abs(im.impactPct) / max) * 48 // % of the half-height
+        return (
+          <div key={im.ticker} className="impact-col">
+            <div className="impact-track">
+              <div className="impact-baseline" />
+              <div
+                className={`impact-vbar ${up ? 'up' : 'down'}`}
+                style={{ height: `${mag}%`, [up ? 'bottom' : 'top']: '50%' }}
+              />
+            </div>
+            <div className={`impact-pct ${up ? 'up' : 'down'}`}>
+              {up ? '+' : ''}
+              {im.impactPct}%
+            </div>
+            <div className="impact-tk">{im.ticker}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 function StressView({ items, busy, err, data, scenarioId, onPick, onRun }) {
@@ -244,7 +256,6 @@ function StressView({ items, busy, err, data, scenarioId, onPick, onRun }) {
           <label className="menu-label stress-cat">{cat}</label>
           {SCENARIOS.filter((s) => s.cat === cat).map((s) => (
             <button key={s.id} className={`stress-row ${scenarioId === s.id ? 'on' : ''}`} onClick={() => onPick(s.id)}>
-              <span className="stress-emoji">{s.emoji}</span>
               <span className="stress-main">
                 <b>{s.title}</b>
                 <small>{s.desc}</small>
@@ -256,43 +267,33 @@ function StressView({ items, busy, err, data, scenarioId, onPick, onRun }) {
       <button className="menu-primary dark" disabled={!scenarioId || busy} onClick={onRun}>
         {busy ? 'Simulating world reaction…' : `Stress test ${items.length > 1 ? 'my portfolio' : items[0].ticker}`}
       </button>
+      {busy && <LoadingFun label="Simulating how the world reacts…" />}
       {err && <div className="menu-msg err">{err}</div>}
 
-      {data && (
+      {data && !busy && (
         <div className="stress-result">
           <div className="menu-heading">Step 1 · Swarm reaction</div>
           {data.swarm.map((s) => (
             <div key={s.group} className="swarm-card">
-              <div className="swarm-group">
-                {SWARM_ICONS[s.group] || '👥'} {s.group}
-              </div>
+              <div className="swarm-group">{s.group}</div>
               <div className="swarm-text">{s.reaction}</div>
             </div>
           ))}
 
           <div className="menu-heading">Step 2 · Impact on your positions</div>
-          {data.impacts.map((im) => (
-            <div key={im.ticker} className="impact-row">
-              <div className="impact-head">
+          <ImpactChart impacts={data.impacts} />
+          <div className="impact-notes">
+            {data.impacts.map((im) => (
+              <div key={im.ticker} className="impact-noterow">
                 <b>{im.ticker}</b>
-                <span className={im.impactPct >= 0 ? 'up' : 'down'}>
-                  {im.impactPct >= 0 ? '+' : ''}
-                  {im.impactPct}%
-                </span>
+                <span>{im.note}</span>
               </div>
-              <div className="impact-bar">
-                <div
-                  className={`impact-fill ${im.impactPct >= 0 ? 'up' : 'down'}`}
-                  style={{ width: `${Math.min(100, Math.abs(im.impactPct) * 1.25)}%` }}
-                />
-              </div>
-              <div className="impact-note">{im.note}</div>
-            </div>
-          ))}
+            ))}
+          </div>
 
           <div className="stress-cols">
             <div>
-              <div className="menu-heading">⚠️ Risks</div>
+              <div className="menu-heading">Risks</div>
               <ul className="stress-list risk">
                 {data.risks.map((r, i) => (
                   <li key={i}>{r}</li>
@@ -300,7 +301,7 @@ function StressView({ items, busy, err, data, scenarioId, onPick, onRun }) {
               </ul>
             </div>
             <div>
-              <div className="menu-heading">🌱 Opportunities</div>
+              <div className="menu-heading">Opportunities</div>
               <ul className="stress-list opp">
                 {data.opportunities.map((o, i) => (
                   <li key={i}>{o}</li>
@@ -317,9 +318,9 @@ function StressView({ items, busy, err, data, scenarioId, onPick, onRun }) {
 
 // ---------------- Overlay shell ----------------
 const VIEWS = [
-  { id: 'map', label: '🧭 Risk map' },
-  { id: 'swot', label: '🧩 SWOT' },
-  { id: 'stress', label: '⚡ Stress test' },
+  { id: 'map', label: 'Risk map' },
+  { id: 'swot', label: 'SWOT' },
+  { id: 'stress', label: 'Stress test' },
 ]
 
 export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
@@ -333,7 +334,6 @@ export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
   const [showProposals, setShowProposals] = useState(false)
   const [sel, setSel] = useState(null)
   const [added, setAdded] = useState([])
-  const portrait = useIsPortrait()
 
   // New subject → start fresh.
   useEffect(() => {
@@ -390,10 +390,6 @@ export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
     setSel(null)
   }
 
-  // The graph views are landscape-first: on a portrait phone we rotate the
-  // whole canvas so the user flips the phone for the immersive view.
-  const rotated = portrait && (view === 'map' || view === 'swot')
-
   const body = (
     <>
       <header className="pos-header ins-header">
@@ -430,7 +426,7 @@ export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
         {!locked && view === 'map' && (
           <>
             <div className="ins-fold">
-              {busy && !mapData && <div className="ins-loading">Placing your {items.length > 1 ? 'portfolio' : 'stock'} on the map…</div>}
+              {busy && !mapData && <LoadingFun label={`Placing your ${items.length > 1 ? 'portfolio' : 'stock'} on the map…`} />}
               {err && <div className="menu-msg err">{err}</div>}
               {mapData && (
                 <>
@@ -450,10 +446,10 @@ export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
                   <div className="ins-actions">
                     {!showProposals ? (
                       <button className="menu-primary dark ins-propose" onClick={() => setShowProposals(true)} disabled={!mapData.proposals.length}>
-                        ✨ Propose additions
+                        Propose additions
                       </button>
                     ) : (
-                      <div className="ins-hint">Tap a faded dot to see why the desk picked it — leave it highlighted-then-dismissed and it lands in your list below. ⌄</div>
+                      <div className="ins-hint">Tap a faded dot to see why the desk picked it — leave it highlighted-then-dismissed and it lands in your list below.</div>
                     )}
                   </div>
                 </>
@@ -485,7 +481,7 @@ export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
 
         {!locked && view === 'swot' && (
           <div className="ins-fold">
-            {busy && !swotData && <div className="ins-loading">Drawing the SWOT for {ctx.label}…</div>}
+            {busy && !swotData && <LoadingFun label={`Drawing the SWOT for ${ctx.label}…`} />}
             {err && <div className="menu-msg err">{err}</div>}
             {swotData && <SwotGrid data={swotData} />}
           </div>
@@ -500,14 +496,7 @@ export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
 
   return (
     <div className="insights-overlay">
-      {rotated ? (
-        <div className="ins-rotate">
-          {body}
-          <div className="ins-flip-hint">📱 flip your phone for the real thing</div>
-        </div>
-      ) : (
-        <div className="ins-flat">{body}</div>
-      )}
+      <div className="ins-flat">{body}</div>
     </div>
   )
 }
