@@ -67,6 +67,7 @@ export default async function handler(req, res) {
         question: `Would the board buy ${ticker}?`,
         decisionLine: `${board.closing || ''} Advisory verdict: ${verdict}. Not investment advice. 🎯`,
       })
+      chat.positions = [{ ticker, weightPct: 100 }]
     }
 
     if (action === 'build') {
@@ -92,6 +93,7 @@ export default async function handler(req, res) {
         question: 'Approve this portfolio?',
         decisionLine: `${board.closing || ''}\n\n📋 Proposed portfolio:\n${lines}${cashLeft > 0 ? `\n• Cash ${cashLeft}%` : ''}`,
       })
+      chat.positions = board.portfolio.map((p) => ({ ticker: p.ticker, weightPct: p.weightPct }))
     }
 
     if (action === 'evaluate') {
@@ -113,6 +115,7 @@ export default async function handler(req, res) {
         question: 'Would the board hold this portfolio as-is?',
         decisionLine: `${board.closing || ''} Board score: ${board.score}/10. 🏁`,
       })
+      chat.positions = rows
     }
 
     if (!chat) return json(res, 400, { error: 'unknown action' })

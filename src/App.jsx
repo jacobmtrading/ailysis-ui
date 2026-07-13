@@ -9,6 +9,7 @@ import TutorialOverlay from './components/TutorialOverlay'
 import AllDiscussionsOverlay from './components/AllDiscussionsOverlay'
 import MenuOverlay from './components/MenuOverlay'
 import StudioOverlay from './components/StudioOverlay'
+import InsightsOverlay from './components/InsightsOverlay'
 import AdminOverlay from './components/AdminOverlay'
 import { useMarketStatus } from './useMarketStatus'
 import { fetchLive } from './api'
@@ -55,6 +56,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuExpandTier, setMenuExpandTier] = useState(null)
   const [studioOpen, setStudioOpen] = useState(false)
+  const [insightsCtx, setInsightsCtx] = useState(null)
   const [adminOpen, setAdminOpen] = useState(false)
   const [user, setUser] = useState(null)
   const [resetToken, setResetToken] = useState(null)
@@ -287,12 +289,24 @@ export default function App() {
         open={studioOpen}
         user={user}
         onOpenChat={setActiveOrder}
+        onOpenInsights={setInsightsCtx}
         onUpgrade={(tier) => {
           setStudioOpen(false)
           setMenuExpandTier(tier)
           setMenuOpen(true)
         }}
         onClose={() => setStudioOpen(false)}
+      />
+      <InsightsOverlay
+        ctx={insightsCtx}
+        user={user}
+        onUpgrade={(tier) => {
+          setInsightsCtx(null)
+          setStudioOpen(false)
+          setMenuExpandTier(tier)
+          setMenuOpen(true)
+        }}
+        onClose={() => setInsightsCtx(null)}
       />
       <AdminOverlay open={adminOpen} onClose={() => setAdminOpen(false)} />
       <ChatOverlay order={activeOrder} onClose={() => setActiveOrder(null)} />

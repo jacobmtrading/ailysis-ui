@@ -1391,3 +1391,240 @@ body {
 }
 .upsell-btn:hover { background: rgba(125, 60, 255, 0.18); }
 .upsell-btn:active { background: rgba(125, 60, 255, 0.24); }
+
+/* ---------------- Insights overlay (risk map / SWOT / stress) ---------------- */
+.insights-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 197;
+  background: #fff;
+  color: var(--text);
+  animation: slideIn 0.26s ease;
+}
+/* Landscape-first views on a portrait phone: rotate the whole canvas so the
+   user flips the phone sideways for the immersive view. */
+.ins-rotate {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100dvh;
+  height: 100dvw;
+  transform: rotate(90deg) translateY(-100%);
+  transform-origin: top left;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+.ins-flat {
+  position: absolute;
+  inset: 0;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ins-header { flex: 0 0 auto; gap: 10px; }
+.ins-tabs {
+  margin: 0 0 0 auto;
+  flex: 0 1 380px;
+  min-width: 0;
+}
+.ins-tabs button { padding: 9px 6px; font-size: 12.5px; white-space: nowrap; }
+.ins-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 16px calc(env(safe-area-inset-bottom) + 24px);
+}
+/* Everything inside the fold fills the first screen — the "Added stocks"
+   list only appears once you scroll. */
+.ins-fold {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.ins-locked { justify-content: center; text-align: center; }
+.ins-loading {
+  margin: auto;
+  color: var(--muted);
+  font-size: 14px;
+  animation: pulse 1.4s ease infinite;
+}
+@keyframes pulse { 50% { opacity: 0.45; } }
+.ins-flip-hint {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  font-size: 11px;
+  color: var(--faint);
+  pointer-events: none;
+}
+
+/* ---- polar map ---- */
+.ins-chartwrap { position: relative; flex: 1 1 auto; min-height: 0; }
+.ins-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ins-axis-label { font-size: 13px; font-weight: 700; fill: var(--muted); }
+.ins-center-label { font-size: 10px; fill: var(--faint); }
+.ins-cluster-label { font-size: 11px; font-weight: 700; opacity: 0.75; }
+.ins-dot { cursor: pointer; }
+.ins-dot-label { font-size: 11px; font-weight: 700; fill: var(--text); }
+.ins-dot-label.faded { fill: var(--muted); }
+.ins-pop-fo { overflow: visible; }
+.ins-pop-slot {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.ins-pop-slot.above { justify-content: flex-end; }
+.ins-pop-slot.below { justify-content: flex-start; }
+.ins-pop {
+  position: relative;
+  background: var(--black);
+  color: #fff;
+  border-radius: 12px;
+  padding: 12px 13px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+.ins-pop.above::after,
+.ins-pop.below::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 14px;
+  height: 14px;
+  background: var(--black);
+}
+.ins-pop.above::after { bottom: -6px; }
+.ins-pop.below::after { top: -6px; }
+.ins-pop-title { font-size: 14px; font-weight: 800; }
+.ins-pop-title span { font-weight: 500; color: #b9b9c0; font-size: 12px; margin-left: 4px; }
+.ins-pop-scores { display: flex; gap: 10px; font-size: 11px; color: #b9b9c0; margin: 5px 0 7px; }
+.ins-pop-text { font-size: 12px; line-height: 1.45; }
+.ins-pop-btn {
+  margin-top: 9px;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  padding: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ins-actions { flex: 0 0 auto; padding: 6px 0 12px; }
+.ins-propose { margin-top: 0; }
+.ins-hint { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.45; }
+
+/* ---- added stocks list (below the fold) ---- */
+.ins-added { padding-top: 18px; border-top: 1px solid var(--hair); }
+.added-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--hair);
+}
+.added-badge {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.added-main { min-width: 0; }
+.added-name { font-size: 14px; font-weight: 700; }
+.added-name small { font-weight: 500; color: var(--muted); margin-left: 6px; }
+.added-reason { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin-top: 2px; }
+.added-remove {
+  margin-left: auto;
+  border: none;
+  background: var(--chip);
+  color: var(--muted);
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+/* ---- SWOT ---- */
+.swot-grid {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+  padding: 4px 0 12px;
+  min-height: 0;
+}
+.swot-cell {
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--qc) 9%, #fff);
+  border: 1px solid color-mix(in srgb, var(--qc) 30%, #fff);
+  overflow-y: auto;
+}
+.swot-cell-title { font-size: 13px; font-weight: 800; color: var(--qc); margin-bottom: 6px; }
+.swot-cell ul { margin: 0; padding-left: 16px; }
+.swot-cell li { font-size: 12.5px; line-height: 1.5; margin-bottom: 4px; }
+
+/* ---- stress test ---- */
+.stress-view { padding-top: 6px; }
+.stress-cat { text-transform: capitalize; }
+.stress-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  background: var(--chip);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 11px 12px;
+  margin-bottom: 8px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.stress-row.on { border-color: var(--black); background: #fff; }
+.stress-emoji { font-size: 20px; line-height: 1.2; }
+.stress-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stress-main b { font-size: 14px; }
+.stress-main small { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.stress-result { margin-top: 18px; }
+.swarm-card {
+  background: var(--chip);
+  border-radius: 12px;
+  padding: 11px 13px;
+  margin-bottom: 8px;
+}
+.swarm-group { font-size: 13px; font-weight: 800; margin-bottom: 3px; }
+.swarm-text { font-size: 12.5px; color: #555; line-height: 1.5; }
+.impact-row { padding: 9px 0; border-bottom: 1px solid var(--hair); }
+.impact-head { display: flex; justify-content: space-between; font-size: 13.5px; }
+.impact-head .up { color: var(--green); font-weight: 700; }
+.impact-head .down { color: var(--red); font-weight: 700; }
+.impact-bar { height: 5px; border-radius: 3px; background: var(--hair); margin: 6px 0; overflow: hidden; }
+.impact-fill { height: 100%; border-radius: 3px; }
+.impact-fill.up { background: var(--green); }
+.impact-fill.down { background: var(--red); }
+.impact-note { font-size: 12px; color: var(--muted); line-height: 1.45; }
+.stress-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.stress-list { margin: 0; padding-left: 16px; }
+.stress-list li { font-size: 12.5px; line-height: 1.5; margin-bottom: 5px; }
+.stress-list.risk li::marker { color: var(--red); }
+.stress-list.opp li::marker { color: var(--green); }
+.stress-summary { margin-top: 12px; }
+
+@media (max-width: 560px) {
+  .stress-cols { grid-template-columns: 1fr; }
+}

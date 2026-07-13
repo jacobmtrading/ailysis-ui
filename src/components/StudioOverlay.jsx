@@ -7,12 +7,13 @@ const THEMES = ['Momentum', 'Value', 'Growth', 'Dividends', 'Picks & Shovels', '
 const TIER_RANK = { free: 0, premium: 1, tailormade: 2 }
 const TIER_LABEL = { premium: 'Premium', tailormade: 'Tailormade' }
 
-export default function StudioOverlay({ open, user, onOpenChat, onUpgrade, onClose }) {
+export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, onUpgrade, onClose }) {
   const [tab, setTab] = useState('analyze')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
   const [upsell, setUpsell] = useState(null)
   const [mine, setMine] = useState([])
+  const [lastCtx, setLastCtx] = useState(null)
 
   // analyze
   const [query, setQuery] = useState('')
@@ -48,6 +49,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onUpgrade, onClo
       const out = await fn()
       if (out?.chat) {
         setMine((m) => [out.chat, ...m])
+        if (out.chat.positions?.length) setLastCtx({ items: out.chat.positions, label: out.chat.name })
         onOpenChat({ ticker: out.chat.ticker, name: out.chat.name, source: out.chat.source, chat: out.chat.messages })
       }
     } catch (e) {
@@ -75,6 +77,31 @@ export default function StudioOverlay({ open, user, onOpenChat, onUpgrade, onClo
     setUpsell(null)
     setErr(null)
   }
+
+  // Premium insight tools (risk map / SWOT / stress test) for a given subject.
+  const openTool = (view, items, label, need) => {
+    if (locked(need)) {
+      setUpsell(need)
+      return
+    }
+    onOpenInsights({ view, items, label })
+  }
+  const toolRow = (items, label, need) => (
+    <div className="menu-section ins-launch">
+      <div className="menu-heading">Insight tools · {label}</div>
+      <div className="chip-row">
+        <button className="chip" onClick={() => openTool('map', items, label, need)}>
+          🧭 Risk map{locked(need) ? ' 🔒' : ''}
+        </button>
+        <button className="chip" onClick={() => openTool('swot', items, label, need)}>
+          🧩 SWOT{locked(need) ? ' 🔒' : ''}
+        </button>
+        <button className="chip" onClick={() => openTool('stress', items, label, need)}>
+          ⚡ Stress test{locked(need) ? ' 🔒' : ''}
+        </button>
+      </div>
+    </div>
+  )
 
   return (
     <div className="studio-overlay">
@@ -128,6 +155,8 @@ export default function StudioOverlay({ open, user, onOpenChat, onUpgrade, onClo
                 {locked('premium') ? ' 🔒' : ''}
               </button>
             ))}
+            {matches.length > 0 &&
+              toolRow([{ ticker: matches[0].t, weightPct: 100 }], `${matches[0].t} — ${matches[0].n}`, 'premium')}
           </>
         )}
 
@@ -216,6 +245,12 @@ export default function StudioOverlay({ open, user, onOpenChat, onUpgrade, onClo
             >
               {busy ? 'The board is deliberating…' : `Evaluate my portfolio${locked('tailormade') ? ' 🔒' : ''}`}
             </button>
+            {rows.filter((r) => r.ticker && r.weightPct).length >= 2 &&
+              toolRow(
+                rows.filter((r) => r.ticker && r.weightPct).map((r) => ({ ticker: r.ticker, weightPct: +r.weightPct })),
+                'My portfolio',
+                'tailormade'
+              )}
           </>
         )}
 
@@ -225,6 +260,10 @@ export default function StudioOverlay({ open, user, onOpenChat, onUpgrade, onClo
           </button>
         )}
         {err && <div className="menu-msg err">{err}</div>}
+
+        {user &&
+          lastCtx &&
+          toolRow(lastCtx.items, lastCtx.label, lastCtx.items.length > 1 ? 'tailormade' : 'premium')}
 
         {user && mine.length > 0 && (
           <div className="menu-section">

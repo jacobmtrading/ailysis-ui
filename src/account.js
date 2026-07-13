@@ -41,6 +41,12 @@ export const buildPortfolio = (spec) => call('/api/studio', { method: 'POST', bo
 export const evaluatePortfolio = (positions) =>
   call('/api/studio', { method: 'POST', body: { action: 'evaluate', positions } })
 
+export const insightsMap = (items) => call('/api/insights', { method: 'POST', body: { action: 'map', items } })
+export const insightsSwot = (items, label) =>
+  call('/api/insights', { method: 'POST', body: { action: 'swot', items, label } })
+export const insightsStress = (items, scenarioId) =>
+  call('/api/insights', { method: 'POST', body: { action: 'stress', items, scenarioId } })
+
 export const adminList = () => call('/api/admin')
 export const adminSetTier = (username, tier) =>
   call('/api/admin', { method: 'POST', body: { action: 'setTier', username, tier } })
