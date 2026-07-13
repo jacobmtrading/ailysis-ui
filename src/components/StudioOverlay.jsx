@@ -43,6 +43,40 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
     return UNIVERSE.filter((u) => u.t.toLowerCase().startsWith(q) || u.n.toLowerCase().includes(q)).slice(0, 6)
   }, [query])
 
+  // "My sessions" merges server-side board chats with locally-logged insight
+  // opens, each tagged with a note of what it was, newest first.
+  const sessions = useMemo(() => {
+    const fromChats = mine.map((c) => ({
+      id: c.id,
+      name: c.name,
+      time: c.time,
+      note: c.source || 'Board discussion',
+      open: () => onOpenChat({ ticker: c.ticker, name: c.name, source: c.source, chat: c.messages }),
+    }))
+    const fromActivity = activity.map((a) => ({
+      id: a.id,
+      name: a.name,
+      time: a.time,
+      note: a.note,
+      open: () => a.ctx && onOpenInsights(a.ctx),
+    }))
+    return [...fromChats, ...fromActivity].sort((x, y) => y.time - x.time).slice(0, 12)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mine, activity])
+
+  // Whichever subject the insight tools should act on, derived from the active
+  // tab (a searched stock / an entered portfolio) with the last run as fallback.
+  const filledRows = rows.filter((r) => r.ticker && r.weightPct)
+  const subject = useMemo(() => {
+    if (tab === 'analyze' && matches[0])
+      return { items: [{ ticker: matches[0].t, weightPct: 100 }], label: `${matches[0].t} — ${matches[0].n}`, need: 'premium' }
+    if (tab === 'check' && filledRows.length >= 1)
+      return { items: filledRows.map((r) => ({ ticker: r.ticker, weightPct: +r.weightPct })), label: 'My portfolio', need: 'tailormade' }
+    if (lastCtx) return { items: lastCtx.items, label: lastCtx.label, need: lastCtx.items.length > 1 ? 'tailormade' : 'premium' }
+    return null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, matches, rows, lastCtx])
+
   if (!open) return null
 
   const locked = (need) => TIER_RANK[tier] < TIER_RANK[need]
@@ -78,45 +112,11 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
     run(fn)
   }
 
-  // "My sessions" merges server-side board chats with locally-logged insight
-  // opens, each tagged with a note of what it was, newest first.
-  const sessions = useMemo(() => {
-    const fromChats = mine.map((c) => ({
-      id: c.id,
-      name: c.name,
-      time: c.time,
-      note: c.source || 'Board discussion',
-      open: () => onOpenChat({ ticker: c.ticker, name: c.name, source: c.source, chat: c.messages }),
-    }))
-    const fromActivity = activity.map((a) => ({
-      id: a.id,
-      name: a.name,
-      time: a.time,
-      note: a.note,
-      open: () => a.ctx && onOpenInsights(a.ctx),
-    }))
-    return [...fromChats, ...fromActivity].sort((x, y) => y.time - x.time).slice(0, 12)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mine, activity])
-
   const pickTab = (t) => {
     setTab(t)
     setUpsell(null)
     setErr(null)
   }
-
-  // Whichever subject the insight tools should act on, derived from the active
-  // tab (a searched stock / an entered portfolio) with the last run as fallback.
-  const filledRows = rows.filter((r) => r.ticker && r.weightPct)
-  const subject = useMemo(() => {
-    if (tab === 'analyze' && matches[0])
-      return { items: [{ ticker: matches[0].t, weightPct: 100 }], label: `${matches[0].t} — ${matches[0].n}`, need: 'premium' }
-    if (tab === 'check' && filledRows.length >= 1)
-      return { items: filledRows.map((r) => ({ ticker: r.ticker, weightPct: +r.weightPct })), label: 'My portfolio', need: 'tailormade' }
-    if (lastCtx) return { items: lastCtx.items, label: lastCtx.label, need: lastCtx.items.length > 1 ? 'tailormade' : 'premium' }
-    return null
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, matches, rows, lastCtx])
 
   // Premium insight tools (risk map / SWOT / stress test) for the active subject.
   const openTool = (view) => {
