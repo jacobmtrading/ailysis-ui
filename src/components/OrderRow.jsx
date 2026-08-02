@@ -24,7 +24,7 @@ export default function OrderRow({ order, onOpen }) {
       ? `${order.timeLabel} · board passed`
       : order.side === 'review'
         ? `${order.timeLabel} · daily check`
-        : `${order.timeLabel} · ${order.qty} @ ${fmtMoney2(order.price)}`
+        : `${order.timeLabel} · ${order.qty} @ ${fmtMoney2(order.price)}${order.shadow ? ' · shadow' : ''}`
   return (
     <button className="order-row" onClick={() => order.chat && onOpen(order)}>
       <div className={`order-badge badge-${badgeOf(order)}`}>{order.ticker.slice(0, 4)}</div>
