@@ -142,8 +142,8 @@ export default function ChatOverlay({ order, onClose }) {
   }, [order])
 
   if (!order) return null
-  const participants = ['max', 'valeria', 'kian', 'rayan', 'emilia', 'mod']
-    .map((k) => AGENTS[k].name.split(' ')[0])
+  const participants = Object.values(AGENTS)
+    .map((a) => a.name.split(' ')[0])
     .join(', ')
   const visible = msgs.slice(0, shown)
   const typingNext = live && shown < msgs.length ? msgs[shown] : null
