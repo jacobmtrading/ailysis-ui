@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AGENTS } from '../data/agents'
+import { AGENTS, agentFor } from '../data/agents'
 
 function initials(name) {
   return name
@@ -42,7 +42,7 @@ function Poll({ msg }) {
 
       <div className="wa-poll-voters">
         {msg.votes.map((v, i) => {
-          const voter = AGENTS[v.agent] || AGENTS.mod
+          const voter = agentFor(v.agent)
           return (
             <span key={i} className="wa-voter">
               <span className="wa-voter-dot" style={{ background: voter.avatar }}>
@@ -59,9 +59,9 @@ function Poll({ msg }) {
 }
 
 function Bubble({ msg, chat }) {
-  const agent = AGENTS[msg.from] || AGENTS.mod
+  const agent = agentFor(msg.from)
   const replied = msg.replyTo != null ? chat[msg.replyTo] : null
-  const repliedAgent = replied ? AGENTS[replied.from] || AGENTS.mod : null
+  const repliedAgent = replied ? agentFor(replied.from) : null
 
   return (
     <div className="wa-row">
@@ -98,7 +98,7 @@ function Bubble({ msg, chat }) {
 }
 
 function TypingBubble({ msg }) {
-  const agent = AGENTS[msg?.from] || AGENTS.mod
+  const agent = agentFor(msg?.from)
   return (
     <div className="wa-row">
       <div className="wa-avatar" style={{ background: agent.avatar }}>
