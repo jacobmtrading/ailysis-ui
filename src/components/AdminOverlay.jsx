@@ -7,6 +7,7 @@ export default function AdminOverlay({ open, onClose }) {
   const [newCode, setNewCode] = useState('')
   const [newTier, setNewTier] = useState('premium')
   const [busy, setBusy] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
 
   const refresh = () =>
     api
@@ -118,6 +119,33 @@ export default function AdminOverlay({ open, onClose }) {
             </button>
           </div>
         ))}
+
+        <div className="menu-heading" style={{ marginTop: 18 }}>
+          Danger zone
+        </div>
+        <div className="admin-row">
+          <div className="admin-user">
+            <div className="admin-name">Reset portfolio</div>
+            <div className="admin-sub">
+              Wipes all trades, discussions & performance history back to a fresh $100k start. Accounts and codes are kept.
+            </div>
+          </div>
+          {confirmReset ? (
+            <button
+              className="menu-logout"
+              disabled={busy}
+              onClick={() =>
+                act(() => api.adminResetState()).then(() => setConfirmReset(false))
+              }
+            >
+              Confirm reset
+            </button>
+          ) : (
+            <button className="menu-logout" disabled={busy} onClick={() => setConfirmReset(true)}>
+              Reset…
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -69,3 +69,4 @@ export const adminSetTier = (username, tier) =>
 export const adminAddCode = (code, tier) =>
   call('/api/admin', { method: 'POST', body: { action: 'addCode', code, tier } })
 export const adminDelCode = (code) => call('/api/admin', { method: 'POST', body: { action: 'delCode', code } })
+export const adminResetState = () => call('/api/admin', { method: 'POST', body: { action: 'resetState' } })
