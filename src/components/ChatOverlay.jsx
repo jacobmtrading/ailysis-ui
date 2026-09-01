@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AGENTS, agentFor } from '../data/agents'
+import { AGENTS } from '../data/agents'
 
 function initials(name) {
   return name
@@ -42,7 +42,7 @@ function Poll({ msg }) {
 
       <div className="wa-poll-voters">
         {msg.votes.map((v, i) => {
-          const voter = agentFor(v.agent)
+          const voter = AGENTS[v.agent] || AGENTS.mod
           return (
             <span key={i} className="wa-voter">
               <span className="wa-voter-dot" style={{ background: voter.avatar }}>
@@ -59,9 +59,9 @@ function Poll({ msg }) {
 }
 
 function Bubble({ msg, chat }) {
-  const agent = agentFor(msg.from)
+  const agent = AGENTS[msg.from] || AGENTS.mod
   const replied = msg.replyTo != null ? chat[msg.replyTo] : null
-  const repliedAgent = replied ? agentFor(replied.from) : null
+  const repliedAgent = replied ? AGENTS[replied.from] || AGENTS.mod : null
 
   return (
     <div className="wa-row">
@@ -98,7 +98,7 @@ function Bubble({ msg, chat }) {
 }
 
 function TypingBubble({ msg }) {
-  const agent = agentFor(msg?.from)
+  const agent = AGENTS[msg?.from] || AGENTS.mod
   return (
     <div className="wa-row">
       <div className="wa-avatar" style={{ background: agent.avatar }}>
@@ -142,8 +142,8 @@ export default function ChatOverlay({ order, onClose }) {
   }, [order])
 
   if (!order) return null
-  const participants = Object.values(AGENTS)
-    .map((a) => a.name.split(' ')[0])
+  const participants = ['max', 'valeria', 'kian', 'rayan', 'emilia', 'mod']
+    .map((k) => AGENTS[k].name.split(' ')[0])
     .join(', ')
   const visible = msgs.slice(0, shown)
   const typingNext = live && shown < msgs.length ? msgs[shown] : null

@@ -69,7 +69,6 @@ export async function fetchLive() {
         qty: o.qty,
         price: o.price,
         pl: o.plPct ?? 0,
-        shadow: !!o.shadow,
         timeLabel: dateLabel(o.time),
         source: chatObj?.source || '',
         chat: chatObj?.messages || null,
