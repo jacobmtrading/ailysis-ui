@@ -3,10 +3,18 @@
 // POST /api/admin { action: 'setTier'|'addCode'|'delCode'|'resetState', ... }
 import { sessionUser, saveUsers, isAdmin, TIER_RANK } from './_lib/auth.js'
 import { saveState, defaultState } from './_lib/state.js'
-import { json } from './_lib/http.js'
+import { authorized, json } from './_lib/http.js'
 
 export default async function handler(req, res) {
   try {
+    // Portfolio reset can also be triggered with the CRON_SECRET scheme
+    // (Authorization: Bearer <secret>, or ?token=), so it doesn't depend on a
+    // browser admin session. Same effect as the admin-panel button below.
+    if (req.method === 'POST' && req.body?.action === 'resetState' && authorized(req)) {
+      await saveState(defaultState())
+      return json(res, 200, { ok: true, reset: true, via: 'cron-secret' })
+    }
+
     const sess = await sessionUser(req)
     if (!sess || !isAdmin(sess.user)) return json(res, 403, { error: 'admin only' })
     const db = sess.db
