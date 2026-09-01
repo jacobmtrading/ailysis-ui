@@ -1,7 +1,8 @@
 // Admin panel API (requires role=admin):
 // GET  /api/admin -> { users: [...], codes: [...] }
-// POST /api/admin { action: 'setTier'|'addCode'|'delCode', ... }
+// POST /api/admin { action: 'setTier'|'addCode'|'delCode'|'resetState', ... }
 import { sessionUser, saveUsers, isAdmin, TIER_RANK } from './_lib/auth.js'
+import { saveState, defaultState } from './_lib/state.js'
 import { json } from './_lib/http.js'
 
 export default async function handler(req, res) {
@@ -55,6 +56,14 @@ export default async function handler(req, res) {
       delete db.codes[String(code || '').trim()]
       await saveUsers(db)
       return json(res, 200, { ok: true })
+    }
+
+    // Wipe the portfolio/board state back to a fresh start: START_CASH in cash,
+    // no positions, orders, chats, series, cooldowns, or daily budgets. Users,
+    // tiers, and codes are untouched (those live in a separate key).
+    if (action === 'resetState') {
+      await saveState(defaultState())
+      return json(res, 200, { ok: true, reset: true })
     }
 
     return json(res, 400, { error: 'unknown action' })
