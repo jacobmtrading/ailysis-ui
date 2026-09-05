@@ -1273,6 +1273,8 @@ body {
   cursor: pointer;
 }
 .menu-link:active { background: var(--chip); }
+.menu-link.picked { color: var(--green); }
+.menu-link.picked::after { content: ' ✓'; }
 
 .chip-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 6px; }
 .chip {
@@ -1668,8 +1670,9 @@ body {
 .dr-cell.active { background: var(--black); color: #fff; border-color: var(--black); }
 .dr-cell.tool { background: #fff; color: var(--muted); }
 .dr-cell.tool:hover:not(:disabled) { border-color: var(--black); color: var(--text); }
+.dr-cell.tool.active { background: var(--black); color: #fff; border-color: var(--black); }
 .dr-cell:disabled { opacity: 0.5; cursor: default; }
-.dr-toolhint { padding: 6px 20px 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.dr-subjecthint { margin: 12px 0 8px; font-size: 12px; color: var(--muted); line-height: 1.45; }
 
 /* ---- My sessions rows with a note of what was done ---- */
 .ms-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

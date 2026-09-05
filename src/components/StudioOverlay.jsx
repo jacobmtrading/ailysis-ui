@@ -4,6 +4,12 @@ import LoadingFun from './LoadingFun'
 import { UNIVERSE } from '../../api/_lib/universe.js'
 
 const TOOL_LABEL = { map: 'Risk map', swot: 'SWOT', stress: 'Stress test' }
+const TOOL_BLURB = {
+  map: 'Plots political dependency, momentum and valuation on one polar map — and proposes stocks that fill the gaps.',
+  swot: 'Strengths, weaknesses, opportunities and threats, written by the board.',
+  stress: 'Pick a scenario and see how each position would hold up.',
+}
+const IS_TOOL = (t) => t === 'map' || t === 'swot' || t === 'stress'
 
 const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer', 'Industrials', 'Aerospace & Defence', 'Communication']
 const THEMES = ['Momentum', 'Value', 'Growth', 'Dividends', 'Picks & Shovels', 'Defensive']
@@ -28,8 +34,11 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
   const [sectors, setSectors] = useState([])
   const [themes, setThemes] = useState([])
   const [assetClass, setAssetClass] = useState('mixed (stocks + ETFs)')
-  // evaluate
+  // evaluate — also the position list the insight tools run on
   const [rows, setRows] = useState([{ ticker: '', weightPct: '' }, { ticker: '', weightPct: '' }, { ticker: '', weightPct: '' }])
+  // insight tools: run on a single searched stock or on the entered positions
+  const [toolMode, setToolMode] = useState('stock')
+  const [pickedStock, setPickedStock] = useState(null)
 
   useEffect(() => {
     if (open && user) api.myChats().then((d) => setMine(d.chats || [])).catch(() => {})
@@ -64,18 +73,27 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mine, activity])
 
-  // Whichever subject the insight tools should act on, derived from the active
-  // tab (a searched stock / an entered portfolio) with the last run as fallback.
+  // Whichever subject the insight tools should act on. On a tool tab it comes
+  // from that tab's own inputs (a picked stock / the entered positions); from
+  // Analyze or Check it follows what is being worked on there.
   const filledRows = rows.filter((r) => r.ticker && r.weightPct)
+  const portfolioSubject =
+    filledRows.length >= 1
+      ? { items: filledRows.map((r) => ({ ticker: r.ticker, weightPct: +r.weightPct })), label: 'My portfolio', need: 'tailormade' }
+      : null
   const subject = useMemo(() => {
+    if (IS_TOOL(tab)) {
+      if (toolMode === 'portfolio') return portfolioSubject
+      const s = pickedStock || matches[0]
+      return s ? { items: [{ ticker: s.t, weightPct: 100 }], label: `${s.t} — ${s.n}`, need: 'premium' } : null
+    }
     if (tab === 'analyze' && matches[0])
       return { items: [{ ticker: matches[0].t, weightPct: 100 }], label: `${matches[0].t} — ${matches[0].n}`, need: 'premium' }
-    if (tab === 'check' && filledRows.length >= 1)
-      return { items: filledRows.map((r) => ({ ticker: r.ticker, weightPct: +r.weightPct })), label: 'My portfolio', need: 'tailormade' }
+    if (tab === 'check' && portfolioSubject) return portfolioSubject
     if (lastCtx) return { items: lastCtx.items, label: lastCtx.label, need: lastCtx.items.length > 1 ? 'tailormade' : 'premium' }
     return null
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, matches, rows, lastCtx])
+  }, [tab, toolMode, pickedStock, matches, rows, lastCtx])
 
   if (!open) return null
 
@@ -120,10 +138,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
 
   // Premium insight tools (risk map / SWOT / stress test) for the active subject.
   const openTool = (view) => {
-    if (!subject) {
-      setErr('Search a stock (Analyze) or enter positions (Check) first, then open an insight tool.')
-      return
-    }
+    if (!subject) return
     if (locked(subject.need)) {
       setUpsell(subject.need)
       return
@@ -133,6 +148,33 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
     setActivity(api.localSessions())
     onOpenInsights({ view, items: subject.items, label: subject.label })
   }
+
+  // Same position entry the portfolio analysis uses — shared with the insight
+  // tools so a stress test can be fed a portfolio without running a check first.
+  const positionsEditor = (
+    <>
+      {rows.map((r, i) => (
+        <div className="menu-coderow" key={i}>
+          <input
+            className="menu-input"
+            placeholder="Ticker (e.g. AAPL)"
+            value={r.ticker}
+            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, ticker: e.target.value.toUpperCase() } : x)))}
+          />
+          <input
+            className="menu-input weight"
+            placeholder="%"
+            inputMode="numeric"
+            value={r.weightPct}
+            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, weightPct: e.target.value.replace(/\D/g, '') } : x)))}
+          />
+        </div>
+      ))}
+      <button className="menu-link" onClick={() => setRows([...rows, { ticker: '', weightPct: '' }])}>
+        + Add position
+      </button>
+    </>
+  )
 
   return (
     <div className="studio-overlay">
@@ -158,19 +200,12 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
         <button className={`dr-cell ${tab === 'check' ? 'active' : ''}`} onClick={() => pickTab('check')}>
           Check{locked('tailormade') ? ' · locked' : ''}
         </button>
-        <button className="dr-cell tool" disabled={!subject} onClick={() => openTool('map')}>
-          Risk map
-        </button>
-        <button className="dr-cell tool" disabled={!subject} onClick={() => openTool('swot')}>
-          SWOT
-        </button>
-        <button className="dr-cell tool" disabled={!subject} onClick={() => openTool('stress')}>
-          Stress test
-        </button>
+        {Object.entries(TOOL_LABEL).map(([id, label]) => (
+          <button key={id} className={`dr-cell tool ${tab === id ? 'active' : ''}`} onClick={() => pickTab(id)}>
+            {label}
+          </button>
+        ))}
       </div>
-      {!subject && user && (
-        <div className="dr-toolhint">Insight tools use a stock you search under Analyze or the positions you enter under Check.</div>
-      )}
 
       <div className="menu-body">
         {!user && <div className="menu-note">Log in first (☰ menu) to use the board studio.</div>}
@@ -259,32 +294,67 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
             {locked('tailormade') && (
               <div className="menu-note">Preview — enter your positions; upgrade to Tailormade to run the check.</div>
             )}
-            {rows.map((r, i) => (
-              <div className="menu-coderow" key={i}>
-                <input
-                  className="menu-input"
-                  placeholder="Ticker (e.g. AAPL)"
-                  value={r.ticker}
-                  onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, ticker: e.target.value.toUpperCase() } : x)))}
-                />
-                <input
-                  className="menu-input weight"
-                  placeholder="%"
-                  inputMode="numeric"
-                  value={r.weightPct}
-                  onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, weightPct: e.target.value.replace(/\D/g, '') } : x)))}
-                />
-              </div>
-            ))}
-            <button className="menu-link" onClick={() => setRows([...rows, { ticker: '', weightPct: '' }])}>
-              + Add position
-            </button>
+            {positionsEditor}
             <button
               className="menu-primary dark"
               disabled={busy}
               onClick={() => tryRun('tailormade', () => api.evaluatePortfolio(filledRows))}
             >
               {busy ? 'The board is deliberating…' : `Evaluate my portfolio${locked('tailormade') ? ' · locked' : ''}`}
+            </button>
+          </>
+        )}
+
+        {user && IS_TOOL(tab) && (
+          <>
+            <div className="menu-heading">{TOOL_LABEL[tab]}</div>
+            <div className="menu-note">{TOOL_BLURB[tab]}</div>
+
+            <label className="menu-label">Run it on</label>
+            <div className="chip-row">
+              <button className={`chip ${toolMode === 'stock' ? 'on' : ''}`} onClick={() => setToolMode('stock')}>
+                A single stock
+              </button>
+              <button className={`chip ${toolMode === 'portfolio' ? 'on' : ''}`} onClick={() => setToolMode('portfolio')}>
+                My portfolio
+              </button>
+            </div>
+
+            {toolMode === 'stock' ? (
+              <>
+                <input
+                  className="menu-input"
+                  placeholder="Search ticker or name (e.g. NVDA)"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value)
+                    setPickedStock(null)
+                  }}
+                />
+                {matches.map((m) => (
+                  <button
+                    key={m.t}
+                    className={`menu-link ${pickedStock?.t === m.t ? 'picked' : ''}`}
+                    onClick={() => setPickedStock(m)}
+                  >
+                    {m.t} — {m.n} ({m.type === 'etf' ? 'ETF' : m.ind})
+                  </button>
+                ))}
+              </>
+            ) : (
+              positionsEditor
+            )}
+
+            <div className="dr-subjecthint">
+              {subject
+                ? `Ready for ${subject.label}.`
+                : toolMode === 'stock'
+                  ? 'Search a stock above, then open the tool.'
+                  : 'Enter at least one position with a weight, then open the tool.'}
+            </div>
+            <button className="menu-primary dark" disabled={!subject} onClick={() => openTool(tab)}>
+              Open {TOOL_LABEL[tab]}
+              {subject && locked(subject.need) ? ' · locked' : ''}
             </button>
           </>
         )}
