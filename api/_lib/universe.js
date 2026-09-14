@@ -82,22 +82,38 @@ export const UNIVERSE = [
 
 export const byTicker = Object.fromEntries(UNIVERSE.map((e) => [e.t, e]))
 
-// Liquid subset scanned for big daily movers (kept small: 1 Stooq call each).
-export const WATCHLIST = [
-  'AAPL', 'MSFT', 'NVDA', 'AMD', 'AVGO', 'GOOGL', 'META', 'PLTR', 'ASML', 'TSM',
-  'AMZN', 'TSLA', 'COST', 'WMT', 'JPM', 'GS', 'V', 'LLY', 'UNH', 'NVO',
-  'XOM', 'CVX', 'BA', 'LMT', 'RTX', 'GE', 'CAT', 'DIS', 'NFLX', 'MU',
-]
+// How headlines usually name a company, where that differs from `n` — used to
+// check an event headline is really about this company (Google News also
+// matches article bodies, which drags in unrelated firms' events).
+const HEADLINE_NAMES = {
+  AMD: ['AMD'],
+  GOOGL: ['Google', 'Alphabet'],
+  META: ['Meta'],
+  ASML: ['ASML'],
+  TSM: ['TSMC', 'Taiwan Semiconductor'],
+  MU: ['Micron'],
+  AMZN: ['Amazon'],
+  MCD: ['McDonald'],
+  JPM: ['JPMorgan'],
+  BAC: ['Bank of America', 'BofA'],
+  'BRK-B': ['Berkshire'],
+  LLY: ['Eli Lilly', 'Lilly'],
+  JNJ: ['Johnson & Johnson', 'J&J'],
+  XOM: ['Exxon'],
+  NEE: ['NextEra'],
+  LMT: ['Lockheed'],
+  RTX: ['RTX', 'Raytheon'],
+  NOC: ['Northrop'],
+  DE: ['Deere'],
+  DIS: ['Disney'],
+  PG: ['Procter & Gamble', 'P&G'],
+}
+export const headlineNames = (e) => HEADLINE_NAMES[e.t] || [e.n]
+
+// Strategy scan (dips + catalysts): every stock, plus broad ETFs for
+// market-wide dips. VOO doubles as the "vs the market" benchmark.
+export const BENCHMARK = 'VOO'
+export const SCAN_TICKERS = [...UNIVERSE.filter((e) => e.type === 'stock').map((e) => e.t), 'VOO', 'QQQ']
 
 // ETFs Emilia can reach for when the book drifts too stock-heavy.
 export const CORE_ETFS = ['VOO', 'VTI', 'VEA', 'SCHD']
-
-// Industry -> representative sector ETF, for the news/momentum-driven path:
-// when stocks in a sector are running, the sector ETF rides the same theme.
-export const SECTOR_ETF = {
-  Technology: 'QQQ',
-  Energy: 'XLE',
-  Healthcare: 'XLV',
-  Financials: 'XLF',
-  'Aerospace & Defence': 'ITA',
-}

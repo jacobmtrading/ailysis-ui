@@ -81,7 +81,8 @@ export function applyGuardrails(state, entry, proposedSizePct) {
   return { sizePct, notes }
 }
 
-export function executeBuy(state, entry, price, sizePct, stopPct, chatId) {
+// plan: optional strategy exit plan (signals.js buildPlan), kept on new positions.
+export function executeBuy(state, entry, price, sizePct, stopPct, chatId, plan = null) {
   const value = portfolioValue(state)
   const budget = (value * sizePct) / 100
   const qty = Math.max(1, Math.floor(budget / price))
@@ -103,6 +104,7 @@ export function executeBuy(state, entry, price, sizePct, stopPct, chatId) {
       avgPrice: price,
       stopPct,
       buyTime: Date.now(),
+      ...(plan ? { plan } : {}),
     })
   }
   state.lastPrices[entry.t] = price
@@ -164,6 +166,30 @@ export function stopLossChat(pos, price, plPct) {
       {
         from: 'mod',
         text: `Stop-loss executed. Sold ${pos.ticker} at $${price.toFixed(2)} (${plPct.toFixed(1)}%). No vote needed — risk rules are binding. 🔴`,
+        time: chatTime(0),
+      },
+    ],
+  }
+}
+
+// Planned strategy exits (rebound target hit, sell-before-event) — templated too.
+export function planExitChat(pos, price, plPct, why) {
+  const id = `chat-plan-${pos.ticker}-${Date.now()}`
+  return {
+    id,
+    ticker: pos.ticker,
+    name: pos.name,
+    source: 'Planned exit',
+    time: Date.now(),
+    messages: [
+      {
+        from: 'rayan',
+        text: `📋 ${pos.ticker}: ${why}. Sticking to the plan we voted on.`,
+        time: chatTime(1),
+      },
+      {
+        from: 'mod',
+        text: `Planned exit executed. Sold ${pos.ticker} at $${price.toFixed(2)} (${plPct >= 0 ? '+' : ''}${plPct.toFixed(1)}%). ${plPct >= 0 ? '🟢' : '🔴'}`,
         time: chatTime(0),
       },
     ],

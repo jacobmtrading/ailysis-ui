@@ -15,9 +15,17 @@ THE AGENTS (use these exact keys):
 - "emilia" — Emilia ETF. Guardian of asset allocation. Target: 50% ETFs / 50% single stocks. Uses the REAL split provided. If the book is drifting stock-heavy she pushes back on stock buys or demands a smaller size. She ALSO inspects ETF internal concentration: when the candidate is an ETF, "etf_top5_concentration_pct" is provided — she dislikes ETFs whose top-5 holdings are 30% or more of the fund (that's a concentrated sector bet, not real diversification) and argues against them or pushes for a broader alternative (e.g. VOO/VTI). Below 30% she's comfortable.
 - "mod" — The Moderator. Neutral chair. Interrupts at the end, calls the vote, announces the result.
 
+THE CANDIDATE'S STRATEGY ("candidate.strategy", its numbers in "candidate.setup"):
+- "dip" — contrarian buy after a major, statistically unusual drop (measured in sigmas of the stock's own volatility and against the market). The key question: overreaction, or did the news break the thesis (fraud, guidance collapse, lost key customer, regulatory hit)? Decide from the headlines. Buy overreactions in names whose trend was intact; pass when the thesis is broken. Kian judges whether the selling is exhausting (bounce off the low, how stretched it is) instead of simply calling it a downtrend. Drops right after earnings tend to keep drifting — be stricter.
+- "catalyst" — a major upcoming event (earnings this stock historically moves big on, investor day, keynote, product launch, FDA decision) the price has not reacted to yet. The key question: is the potential upside already priced in? Judge it from the setup (run-up vs the market in sigmas, run-up as a share of the typical event move, volume vs normal) and the headlines. Buy only when expectations look under-priced. Also decide "holdThroughEvent": false = sell before the event (capture the run-up, avoid the binary gap), true = hold through it (only with a strong, specific view on the outcome).
+- "insider" — a congressional buy disclosure (filed weeks after the trade).
+- "rebalance" — Emilia's allocation top-up.
+- absent — a client asked for an analysis; judge the stock on its merits.
+NEVER vote yes just because a stock already went up a lot — chasing rallies has cost this fund money. The edge is buying before the move, not after it.
+
 RULES:
 - 7 to 10 messages total (before the vote), each 1-3 sentences, casual group-chat tone, occasional emoji. Agents react to each other and disagree when their philosophies clash.
-- Ground every argument in the data provided (signals, headlines, chart stats, portfolio weights). Do not invent precise numbers you were not given; approximate ("trades around 30x earnings") is fine when widely known.
+- Ground every argument in the data provided (strategy setup, signals, headlines, chart stats, portfolio weights). Do not invent precise numbers you were not given; approximate ("trades around 30x earnings") is fine when widely known.
 - Then ALL FIVE agents vote yes or no. Majority wins. The decision must be consistent with the vote and with Rayan/Emilia's constraints.
 - sizePct: 1-5 (% of total portfolio value). stopPct: 8-18 (stop-loss distance).
 
@@ -26,7 +34,7 @@ Respond with ONLY this JSON:
   "messages": [{"from": "max", "text": "..."}, ...],
   "votes": {"max": "yes|no", "valeria": "yes|no", "kian": "yes|no", "rayan": "yes|no", "emilia": "yes|no"},
   "closing": "one short moderator line announcing the outcome and size/stop if buying",
-  "decision": {"action": "buy|pass", "sizePct": 3, "stopPct": 12, "reason": "one sentence"}
+  "decision": {"action": "buy|pass", "sizePct": 3, "stopPct": 12, "holdThroughEvent": false, "reason": "one sentence"}
 }`
 
 const REVIEW_PROMPT = `You are the investment board of "ailysis", an autonomous paper-trading fund, holding your daily portfolio review in the group chat. Same five agents and exact keys as always: "max" (momentum/news, always gives scenario outlooks with probabilities), "valeria" (value, argues only with numbers), "kian" (charts only), "rayan" (risk/weighting strategist), "emilia" (50/50 ETF-stock allocation guardian), "mod" (moderator).
@@ -35,6 +43,7 @@ You are given the current positions with live P/L and the portfolio balance. Dec
 
 RULES:
 - 5 to 8 messages, 1-3 sentences each, casual tone, agents disagree when philosophies clash, grounded in the data given.
+- Each position has a "strategy". "dip" = bought after an unusual drop to catch the rebound (it auto-sells at "rebound_target"); if "thesis_overdue" is true the rebound never came — lean towards selling. "catalyst" = bought ahead of an event; once "event_passed" is true, judge it on the outcome and don't keep it out of hope. "core" = a normal holding.
 - Then all five vote on the moderator's proposal (which may be "hold everything").
 - At most 2 sells. portionPct is how much of the position to sell (25-100).
 
@@ -91,6 +100,7 @@ export async function runBoard({ candidate, stats, snapshot }) {
       name: candidate.n,
       industry: candidate.ind,
       type: candidate.type,
+      ...(candidate.strategy ? { strategy: candidate.strategy, setup: candidate.setup } : {}),
       signals: candidate.signals,
       recent_headlines: candidate.headlines,
       ...(candidate.type === 'etf' && candidate.top5 != null
@@ -112,6 +122,7 @@ export async function runBoard({ candidate, stats, snapshot }) {
       action: yes >= 3 && decision.action === 'buy' ? 'buy' : 'pass',
       sizePct: Math.min(5, Math.max(1, Number(decision.sizePct) || 2)),
       stopPct: Math.min(18, Math.max(8, Number(decision.stopPct) || 12)),
+      holdThroughEvent: decision.holdThroughEvent === true,
       reason: String(decision.reason || '').slice(0, 200),
     },
   }

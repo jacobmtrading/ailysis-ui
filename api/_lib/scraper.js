@@ -1,16 +1,24 @@
-// Idea scraper — 100% code, zero LLM tokens. Signals:
-//   1. Capitol Trades: recent congressional BUY disclosures (stocks)
-//   2. Big daily movers on the watchlist (|day change| >= 3%) (stocks)
-//   3. Allocation rebalance: when the book lacks ETF ballast or drifts
+// Idea scraper — 100% code, zero LLM tokens. It used to chase big daily
+// movers, i.e. buy after the move and then get stopped out on the pullback.
+// Signals now, all aimed at buying BEFORE the move:
+//   1. Unusual dips: major, statistically unusual drops in names whose trend
+//      was intact (contrarian entry — see signals.js).
+//   2. Upcoming catalysts: earnings this stock historically moves big on,
+//      investor days, keynotes, FDA decisions — where the price hasn't moved.
+//   3. Capitol Trades: congressional BUY disclosures, skipped if already ran.
+//   4. Allocation rebalance: when the book lacks ETF ballast or drifts
 //      stock-heavy, propose a core ETF (Emilia's feeding point) so the 50/50
 //      ETF-vs-stock target is actually reachable.
 // The chosen candidate is enriched with Google News headlines so the board
 // has real context to argue about.
-import { UNIVERSE, byTicker, WATCHLIST, CORE_ETFS, SECTOR_ETF } from './universe.js'
-import { fetchQuotes } from './market.js'
+import { byTicker, CORE_ETFS, SCAN_TICKERS, BENCHMARK, headlineNames } from './universe.js'
+import { fetchQuotes, fetchDailyBars, fetchPastEarningsDates, nyDay } from './market.js'
 import { classSplit } from './state.js'
+import { getJSON, setJSON } from './redis.js'
+import { computeBaseline, marketMoves, excessMove, dipSetup, catalystSetup, upcomingEvents, mentions } from './signals.js'
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (compatible; ailysis-paper-bot/1.0)' }
+const SCAN_KEY = 'ailysis:scan'
 
 export async function capitolBuys() {
   try {
@@ -36,26 +44,94 @@ export async function capitolBuys() {
   }
 }
 
-export async function bigMovers() {
-  const quotes = await fetchQuotes(WATCHLIST)
-  return Object.entries(quotes)
-    .filter(([, q]) => Math.abs(q.dayChgPct) >= 3)
-    .map(([ticker, q]) => ({ ticker, dayChgPct: +q.dayChgPct.toFixed(1) }))
-}
-
-export async function newsHeadlines(name, ticker, limit = 4) {
+// days: only headlines from the last N days (0 = any time).
+export async function newsHeadlines(name, ticker, limit = 4, days = 0) {
   try {
-    const q = encodeURIComponent(`"${name}" OR ${ticker} stock`)
+    const q = encodeURIComponent(`"${name}" OR ${ticker} stock${days ? ` when:${days}d` : ''}`)
     const res = await fetch(`https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`, { headers: UA })
     if (!res.ok) return []
     const xml = await res.text()
     const titles = [...xml.matchAll(/<item>[\s\S]*?<title>([\s\S]*?)<\/title>/g)]
-      .map((m) => m[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim())
+      .map((m) => decode(m[1]))
       .filter((t) => t && t.length > 15)
     return titles.slice(0, limit)
   } catch {
     return []
   }
+}
+
+// Major non-earnings events (investor days, keynotes, FDA…) from two weeks of
+// news; signals.js keeps only the forward-looking headlines.
+const EVENT_QUERY = '"investor day" OR "analyst day" OR "capital markets day" OR keynote OR "launch event" OR unveil OR FDA OR PDUFA OR "data readout"'
+const decode = (s) =>
+  s.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').trim()
+
+export async function eventHeadlines(entry, today) {
+  const names = headlineNames(entry)
+  try {
+    const q = encodeURIComponent(`(${names.map((n) => `"${n}"`).join(' OR ')}) (${EVENT_QUERY}) when:14d`)
+    const res = await fetch(`https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`, {
+      headers: UA,
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return []
+    const xml = await res.text()
+    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(([, it]) => {
+      const pub = Date.parse(it.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || '')
+      return {
+        title: decode(it.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '').replace(/\s+-\s+[^-]+$/, ''),
+        pub: pub ? new Date(pub).toISOString().slice(0, 10) : '1970-01-01',
+      }
+    })
+    return upcomingEvents(items.filter((i) => i.title && mentions(names, i.title)), today)
+  } catch {
+    return []
+  }
+}
+
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length)
+  let next = 0
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++
+      out[i] = await fn(items[i])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return out
+}
+
+// Per-stock baselines (volatility, 200-day average, typical earnings move…)
+// and upcoming-event headlines. These only change once a day.
+export async function buildScan(today = nyDay()) {
+  const isStock = (t) => byTicker[t].type === 'stock'
+  const [bars, reports, events] = await Promise.all([
+    mapLimit(SCAN_TICKERS, 12, fetchDailyBars),
+    mapLimit(SCAN_TICKERS, 6, (t) => (isStock(t) ? fetchPastEarningsDates(t) : [])),
+    mapLimit(SCAN_TICKERS, 6, (t) => (isStock(t) ? eventHeadlines(byTicker[t], today) : [])),
+  ])
+  const baselines = {}
+  const news = {}
+  SCAN_TICKERS.forEach((t, i) => {
+    const b = computeBaseline(bars[i], today, reports[i])
+    if (b) baselines[t] = b
+    if (events[i].length) news[t] = events[i]
+  })
+  return { day: today, builtAt: Date.now(), baselines, news }
+}
+
+// Built on the first scrape of the New York day, reused from Redis after that.
+export async function loadScan() {
+  const today = nyDay()
+  const cached = await getJSON(SCAN_KEY).catch(() => null)
+  if (cached?.day === today) return cached
+  const scan = await buildScan(today)
+  // Don't pin a half-failed build (data source hiccup) for the whole day.
+  if (Object.keys(scan.baselines).length >= SCAN_TICKERS.length * 0.8) {
+    await setJSON(SCAN_KEY, scan).catch(() => {})
+  }
+  return scan
 }
 
 // Emilia's feeding point: if the book has no ETF ballast or has drifted
@@ -95,50 +171,74 @@ export function etfRebalanceCandidate(state) {
 }
 
 // Pick the single best candidate not already held / recently discussed.
-export async function findCandidate(state) {
+// Returns { candidate, waiting } — waiting: dips still falling, re-checked next run.
+// usOpen=false (Berlin morning before the NYSE opens) skips the dip/catalyst
+// scan: quotes still carry yesterday's move, and buying that at the open is
+// exactly how the fund used to end up buying after the move.
+export async function findCandidate(state, scan, { usOpen = true } = {}) {
   const held = new Set(state.positions.map((p) => p.ticker))
   const now = Date.now()
-  const cooled = (t) => (state.cooldowns[t] || 0) > now
+  const free = (t) => byTicker[t] && !held.has(t) && !((state.cooldowns[t] || 0) > now)
+  const today = nyDay()
+  const base = scan?.baselines || {}
 
-  const [capitol, movers] = await Promise.all([capitolBuys(), bigMovers()])
+  const [capitol, quotes] = await Promise.all([
+    capitolBuys(),
+    usOpen ? fetchQuotes(SCAN_TICKERS, { extended: true }) : {},
+  ])
+  const mkt = marketMoves(quotes[BENCHMARK], base[BENCHMARK])
 
-  const scores = {} // ticker -> { score, signals: [] }
-  const bump = (ticker, pts, signal) => {
-    if (held.has(ticker) || cooled(ticker)) return
-    scores[ticker] = scores[ticker] || { score: 0, signals: [] }
-    scores[ticker].score += pts
-    scores[ticker].signals.push(signal)
+  const picks = {} // ticker -> { strategy, score, signals, setup, ... }
+  const waiting = []
+  const consider = (t, c) => {
+    if (c && (!picks[t] || c.score > picks[t].score)) picks[t] = c
   }
 
-  for (const c of capitol) bump(c.ticker, 2, `Capitol Trades: ${c.who} disclosed a buy`)
-  for (const m of movers) {
-    bump(m.ticker, 1, `Price move: ${m.dayChgPct > 0 ? '+' : ''}${m.dayChgPct}% today`)
-    // News/momentum-driven ETF path: a hot sector surfaces its sector ETF too.
-    if (m.dayChgPct > 0) {
-      const stock = byTicker[m.ticker]
-      const etfT = stock && SECTOR_ETF[stock.ind]
-      if (etfT) bump(etfT, 1, `Sector momentum: ${stock.ind} running — ${m.ticker} +${m.dayChgPct}%`)
+  for (const t of usOpen ? SCAN_TICKERS : []) {
+    if (!free(t)) continue
+    const entry = byTicker[t]
+    const dip = dipSetup(entry, quotes[t], base[t], mkt, today)
+    if (dip?.waiting) waiting.push(t)
+    else consider(t, dip)
+    consider(t, catalystSetup(entry, quotes[t], base[t], mkt, scan?.news?.[t], today))
+  }
+
+  // Congressional buys are disclosed weeks late — skip names that already ran.
+  for (const c of capitol) {
+    if (!free(c.ticker)) continue
+    const q = quotes[c.ticker]
+    const b = base[c.ticker]
+    if (q && b && excessMove(q, b, mkt, 5).z >= 1.5) continue
+    const signal = `Capitol Trades: ${c.who} disclosed a buy`
+    if (picks[c.ticker]) {
+      picks[c.ticker].score += 1
+      picks[c.ticker].signals.push(signal)
+    } else {
+      picks[c.ticker] = { strategy: 'insider', score: 2, signals: [signal] }
     }
   }
 
-  const ranked = Object.entries(scores).sort((a, b) => b[1].score - a[1].score)
-  const topStock = ranked.length
-    ? { entry: byTicker[ranked[0][0]], signals: ranked[0][1].signals, score: ranked[0][1].score }
-    : null
+  const ranked = Object.entries(picks).sort((a, b) => b[1].score - a[1].score)
+  const top = ranked.length ? { entry: byTicker[ranked[0][0]], ...ranked[0][1] } : null
 
-  // ETF rebalancing competes with the top stock; it wins ties so the book
+  // ETF rebalancing competes with the top pick; it wins ties so the book
   // actually moves back toward balance when it's drifting.
   const etf = etfRebalanceCandidate(state)
-  let chosen = null
-  if (etf && (!topStock || etf.score >= topStock.score)) {
-    chosen = { entry: etf.entry, signals: [etf.signal], score: etf.score }
-  } else if (topStock) {
-    chosen = topStock
-  } else if (etf) {
-    chosen = { entry: etf.entry, signals: [etf.signal], score: etf.score }
-  }
-  if (!chosen) return null
+  const chosen =
+    etf && (!top || etf.score >= top.score)
+      ? { entry: etf.entry, strategy: 'rebalance', score: etf.score, signals: [etf.signal] }
+      : top
+  if (!chosen) return { candidate: null, waiting }
 
-  const headlines = await newsHeadlines(chosen.entry.n, chosen.entry.t)
-  return { ...chosen.entry, signals: chosen.signals, score: chosen.score, headlines }
+  const { entry, ...pick } = chosen
+  let headlines
+  if (pick.strategy === 'dip') {
+    headlines = await newsHeadlines(entry.n, entry.t, 5, 3) // why did it drop?
+  } else if (pick.strategy === 'catalyst') {
+    const lead = pick.event.kind === 'earnings' ? [] : [pick.event.title]
+    headlines = [...new Set([...lead, ...(await newsHeadlines(entry.n, entry.t, 4, 14))])]
+  } else {
+    headlines = await newsHeadlines(entry.n, entry.t)
+  }
+  return { candidate: { ...entry, ...pick, headlines }, waiting }
 }

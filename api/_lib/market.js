@@ -36,6 +36,11 @@ export function berlinDay(date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(date)
 }
 
+// New York calendar date string — the trading day of the US-listed universe.
+export function nyDay(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(date)
+}
+
 const UA = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36' }
 
 const cnbcSym = (t) => t.replace(/-/g, '.') // BRK-B -> BRK.B
@@ -44,15 +49,25 @@ const num = (s) => {
   return isFinite(v) ? v : null
 }
 
+// CNBC EventData: "10/28/2026(est)" + announce_time A/B -> { date, confirmed, timing }
+function parseEarnings(ev) {
+  const m = String(ev?.next_earnings_date || '').match(/^(\d{2})\/(\d{2})\/(\d{4})(\(est\))?/)
+  if (!m) return null
+  const timing = ev.announce_time === 'A' ? 'after' : ev.announce_time === 'B' ? 'before' : null
+  return { date: `${m[3]}-${m[1]}-${m[2]}`, confirmed: !m[4], timing }
+}
+
 // ---- Batched quotes: CNBC first (1 request for up to ~40 symbols), Stooq per-symbol fallback.
-export async function fetchQuotes(tickers) {
+// extended: also intraday high/low, P/E and the next earnings date (strategy scan).
+export async function fetchQuotes(tickers, { extended = false } = {}) {
   const out = {}
   if (!tickers.length) return out
   try {
     for (let i = 0; i < tickers.length; i += 40) {
       const chunk = tickers.slice(i, i + 40)
       const symbols = chunk.map(cnbcSym).join('|')
-      const url = `https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols=${encodeURIComponent(symbols)}&requestMethod=itv&noform=1&partnerId=2&output=json`
+      const method = extended ? 'extended&events=1' : 'itv'
+      const url = `https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols=${encodeURIComponent(symbols)}&requestMethod=${method}&noform=1&partnerId=2&output=json`
       const res = await fetch(url, { headers: UA })
       if (!res.ok) continue
       const data = await res.json()
@@ -66,6 +81,9 @@ export async function fetchQuotes(tickers) {
           price,
           dayChgPct: num(q.change_pct) ?? 0,
           prevClose: num(q.previous_day_closing) ?? price,
+          ...(extended
+            ? { low: num(q.low) || null, high: num(q.high) || null, pe: num(q.pe), fpe: num(q.fpe), earnings: parseEarnings(q.EventData) }
+            : {}),
         }
       }
     }
@@ -124,5 +142,45 @@ export async function fetchStats(ticker) {
     }
   } catch {
     return null
+  }
+}
+
+// ---- ~2 years of daily bars (CNBC "1Y" chart, keyless), oldest first: [{ t, c, v }].
+export async function fetchDailyBars(ticker) {
+  try {
+    const res = await fetch(`https://ts-api.cnbc.com/harmony/app/charts/1Y.json?symbol=${encodeURIComponent(cnbcSym(ticker))}`, {
+      headers: UA,
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data?.barData?.priceBars || [])
+      .map((b) => {
+        const s = String(b.tradeTime)
+        return { t: `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`, c: parseFloat(b.close), v: Number(b.volume) || 0 }
+      })
+      .filter((b) => isFinite(b.c) && b.c > 0)
+  } catch {
+    return []
+  }
+}
+
+// ---- Past earnings report dates (Nasdaq, keyless), newest first.
+export async function fetchPastEarningsDates(ticker) {
+  try {
+    const res = await fetch(`https://api.nasdaq.com/api/company/${encodeURIComponent(cnbcSym(ticker))}/earnings-surprise`, {
+      headers: { ...UA, Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data?.data?.earningsSurpriseTable?.rows || [])
+      .map((r) => String(r.dateReported || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))
+      .filter(Boolean)
+      .map((m) => `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`)
+      .sort()
+      .reverse()
+  } catch {
+    return []
   }
 }

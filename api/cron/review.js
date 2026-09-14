@@ -3,7 +3,7 @@
 // make last-minute sell adjustments while the exchange is still open. Refreshes
 // prices first so the review sees an accurate end-of-day P/L.
 import { loadState, saveState, portfolioValue, classSplit, industryWeights } from '../_lib/state.js'
-import { berlinDay, fetchQuotes } from '../_lib/market.js'
+import { berlinDay, nyDay, fetchQuotes } from '../_lib/market.js'
 import { runReview } from '../_lib/board.js'
 import { assembleChat, executeSell } from '../_lib/portfolio.js'
 import { authorized, json } from '../_lib/http.js'
@@ -34,6 +34,17 @@ export default async function handler(req, res) {
         plPct: +(((price - p.avgPrice) / p.avgPrice) * 100).toFixed(1),
         weightPct: +(((p.qty * price) / portfolioValue(state)) * 100).toFixed(1),
         heldDays: Math.round((Date.now() - p.buyTime) / 86400e3),
+        strategy: p.plan?.strategy || 'core',
+        ...(p.plan?.strategy === 'dip'
+          ? { rebound_target: p.plan.targetPrice, thesis_overdue: Date.now() > p.plan.reviewAfter }
+          : {}),
+        ...(p.plan?.strategy === 'catalyst'
+          ? {
+              event: p.plan.event,
+              hold_through_event: p.plan.holdThroughEvent,
+              event_passed: p.plan.event.date ? p.plan.event.date < nyDay() : Date.now() > p.plan.reviewAfter,
+            }
+          : {}),
       }
     })
     const snapshot = {

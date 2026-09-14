@@ -2,8 +2,9 @@
 // Scraping + scoring is free (pure code). The board (one DeepSeek call) only
 // convenes when a genuine candidate is found, capped per day.
 import { loadState, saveState, portfolioValue, classSplit, industryWeights } from '../_lib/state.js'
-import { anyMarketOpen, berlinDay, fetchQuote, fetchStats } from '../_lib/market.js'
-import { findCandidate } from '../_lib/scraper.js'
+import { anyMarketOpen, isNyseOpen, berlinDay, fetchQuote, fetchStats } from '../_lib/market.js'
+import { findCandidate, loadScan } from '../_lib/scraper.js'
+import { buildPlan, describePlan } from '../_lib/signals.js'
 import { runBoard } from '../_lib/board.js'
 import { assembleChat, applyGuardrails, executeBuy } from '../_lib/portfolio.js'
 import { authorized, json } from '../_lib/http.js'
@@ -24,10 +25,11 @@ export default async function handler(req, res) {
       return json(res, 200, { skipped: `daily board budget reached (${BOARDS_PER_DAY})` })
     }
 
-    const candidate = await findCandidate(state)
+    const scan = await loadScan()
+    const { candidate, waiting } = await findCandidate(state, scan, { usOpen: isNyseOpen() || force })
     if (!candidate) {
       await saveState(state)
-      return json(res, 200, { ok: true, candidate: null, note: 'nothing interesting found — no tokens spent' })
+      return json(res, 200, { ok: true, candidate: null, waiting, note: 'nothing interesting found — no tokens spent' })
     }
 
     // Real data for the board: live quote + chart stats + true portfolio state.
@@ -52,13 +54,15 @@ export default async function handler(req, res) {
 
     let result = 'pass'
     let guardrailNotes = []
+    let plan = null
     const chatId = `chat-${candidate.t}-${Date.now()}`
 
     if (board.decision.action === 'buy') {
       const { sizePct, notes } = applyGuardrails(state, candidate, board.decision.sizePct)
       guardrailNotes = notes
       if (sizePct > 0) {
-        const order = executeBuy(state, candidate, quote.price, sizePct, board.decision.stopPct, chatId)
+        plan = buildPlan(candidate, quote.price, board.decision.holdThroughEvent)
+        const order = executeBuy(state, candidate, quote.price, sizePct, board.decision.stopPct, chatId, plan)
         if (order) result = `bought ${order.qty} @ $${quote.price}`
       } else {
         result = 'pass (guardrails vetoed the buy)'
@@ -66,9 +70,10 @@ export default async function handler(req, res) {
     }
 
     const yes = Object.values(board.votes).filter((v) => v === 'yes').length
+    const planLine = plan ? `, plan: ${describePlan(plan)}` : ''
     const decisionLine =
       result.startsWith('bought')
-        ? `${board.closing || ''} Executed: ${result}, stop ${board.decision.stopPct}%. 🟢${guardrailNotes.length ? ` (${guardrailNotes.join('; ')})` : ''}`
+        ? `${board.closing || ''} Executed: ${result}, stop ${board.decision.stopPct}%${planLine}. 🟢${guardrailNotes.length ? ` (${guardrailNotes.join('; ')})` : ''}`
         : `${board.closing || ''} Vote ${yes}-${5 - yes}. No trade. ⚪️${guardrailNotes.length ? ` (${guardrailNotes.join('; ')})` : ''}`
 
     const chat = assembleChat({
@@ -98,7 +103,17 @@ export default async function handler(req, res) {
     }
 
     await saveState(state)
-    json(res, 200, { ok: true, candidate: candidate.t, votes: board.votes, result, guardrailNotes })
+    json(res, 200, {
+      ok: true,
+      candidate: candidate.t,
+      strategy: candidate.strategy,
+      score: candidate.score,
+      votes: board.votes,
+      result,
+      plan,
+      guardrailNotes,
+      waiting,
+    })
   } catch (err) {
     json(res, 500, { error: String(err.message || err) })
   }

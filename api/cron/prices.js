@@ -1,9 +1,9 @@
 // GET /api/cron/prices?token=SECRET — hourly during market hours.
-// Zero LLM cost: refreshes quotes, appends a portfolio value point,
-// and enforces stop-losses (with a templated chat, no tokens).
+// Zero LLM cost: refreshes quotes, appends a portfolio value point, and
+// enforces stop-losses and strategy exit plans (templated chats, no tokens).
 import { loadState, saveState, portfolioValue } from '../_lib/state.js'
 import { fetchQuotes, fetchStats, anyMarketOpen, berlinDay } from '../_lib/market.js'
-import { executeSell, stopLossChat } from '../_lib/portfolio.js'
+import { executeSell, stopLossChat, planExitChat } from '../_lib/portfolio.js'
 import { authorized, json } from '../_lib/http.js'
 
 export default async function handler(req, res) {
@@ -49,6 +49,26 @@ export default async function handler(req, res) {
       }
     }
 
+    // Strategy exit plans voted at entry (signals.js buildPlan) — also binding.
+    const planned = []
+    for (const pos of [...state.positions]) {
+      const plan = pos.plan
+      const price = state.lastPrices[pos.ticker]
+      if (!plan || !price) continue
+      let why = null
+      if (plan.strategy === 'dip' && price >= plan.targetPrice) {
+        why = `rebound target $${plan.targetPrice} reached — the dip trade did its job`
+      } else if (plan.strategy === 'catalyst' && plan.exitAt && Date.now() >= plan.exitAt) {
+        why = `the ${plan.event.kind} on ${plan.event.date} is up next — selling before it as planned, no binary gap risk`
+      }
+      if (!why) continue
+      const plPct = ((price - pos.avgPrice) / pos.avgPrice) * 100
+      const chat = planExitChat(pos, price, plPct, why)
+      state.chats[chat.id] = chat
+      executeSell(state, pos.ticker, price, 100, chat.id)
+      planned.push(pos.ticker)
+    }
+
     // Append an hourly value point (dedupe within 45 min).
     const value = +portfolioValue(state).toFixed(2)
     const last = state.series[state.series.length - 1]
@@ -59,7 +79,7 @@ export default async function handler(req, res) {
     }
 
     await saveState(state)
-    json(res, 200, { ok: true, value, quotes: Object.keys(quotes).length, stopped })
+    json(res, 200, { ok: true, value, quotes: Object.keys(quotes).length, stopped, planned })
   } catch (err) {
     json(res, 500, { error: String(err.message || err) })
   }

@@ -18,6 +18,16 @@ Autonomous paper-trading fund with an AI agent board, in one repo:
 | **Emilia ETF** | Asset allocation; keeps the book near 50/50 ETFs vs stocks (code-enforced) |
 | **The Moderator** | Calls the vote, announces the outcome |
 
+## How ideas are found
+
+The scraper deliberately does **not** chase stocks that already jumped (that bought the top and sold the pullback). It looks for entries *before* the move:
+
+- **Unusual dips** — a big drop (≥4% in a day or ≥8% in 5 sessions) that is also ≥2.5σ unusual for that stock vs the market, in a name whose trend was intact. It waits for a bounce off the intraday low. The board decides whether it's an overreaction or a broken thesis. Exit plan: take profit once half the drop is recovered.
+- **Upcoming catalysts** — earnings this stock historically moves big on, or an investor day / keynote / FDA decision found in the news, where the stock hasn't run up yet (10-day run-up vs market <1σ and under half the typical event move, no volume surge). The board decides whether the upside is priced in and whether to hold through the event or sell before it.
+- **Capitol Trades** buy disclosures (skipped if the stock already ran) and **Emilia's rebalance** into core ETFs.
+
+Thresholds live in `api/_lib/signals.js`. Per-stock baselines (volatility, 200-day average, typical earnings move, event headlines) are built once per New York day and cached in Redis under `ailysis:scan`.
+
 ## Cost design (deliberately cheap)
 
 - Scraping, scoring, price updates, stop-losses, guardrails: **pure code, zero tokens**.
