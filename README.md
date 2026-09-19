@@ -26,7 +26,17 @@ The scraper deliberately does **not** chase stocks that already jumped (that bou
 - **Upcoming catalysts** — earnings this stock historically moves big on, or an investor day / keynote / FDA decision found in the news, where the stock hasn't run up yet (10-day run-up vs market <1σ and under half the typical event move, no volume surge). The board decides whether the upside is priced in and whether to hold through the event or sell before it.
 - **Capitol Trades** buy disclosures (skipped if the stock already ran) and **Emilia's rebalance** into core ETFs.
 
-Thresholds live in `api/_lib/signals.js`. Per-stock baselines (volatility, 200-day average, typical earnings move, event headlines) are built once per New York day and cached in Redis under `ailysis:scan`.
+Thresholds live in `api/_lib/signals.js`. The scan covers every stock in the universe worth ≥ $5B (~1,500 names). Per-stock baselines (volatility, 200-day average, typical earnings move) are built in 12-second slices across the day's first few scrapes and cached in Redis under `ailysis:scan`. Upcoming events come from ~11 generic news searches matched to company names; earnings history is only fetched for names with earnings coming up (cached under `ailysis:earnings`).
+
+## Stock universe
+
+`api/_lib/universe-data.js` is generated: every US-listed stock ≥ $1B including ADRs (Nasdaq screener), plus ~60 major European and Asian companies that trade as US OTC ADRs (Siemens, Allianz, Rheinmetall, LVMH, Tencent…) — about 2,600 names. ETFs are hand-curated in `api/_lib/universe.js`. Refresh the list every few months:
+
+```bash
+npm run universe
+```
+
+In the discussion room users can also analyze any ticker outside the list; it's validated live against CNBC. The portfolio builder and risk-map proposals get a shortlist (largest names per industry) so prompts stay small.
 
 ## Cost design (deliberately cheap)
 

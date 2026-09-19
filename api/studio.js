@@ -6,9 +6,9 @@
 import { sessionUser, loadUserData, saveUserData, TIER_RANK } from './_lib/auth.js'
 import { runBoard, runBuild, runEvaluate } from './_lib/board.js'
 import { assembleChat } from './_lib/portfolio.js'
-import { fetchQuote, fetchStats, berlinDay } from './_lib/market.js'
+import { fetchQuote, fetchStats, berlinDay, resolveTicker } from './_lib/market.js'
 import { newsHeadlines } from './_lib/scraper.js'
-import { byTicker, UNIVERSE } from './_lib/universe.js'
+import { byTicker, llmUniverse } from './_lib/universe.js'
 import { json } from './_lib/http.js'
 
 const DAILY_CAP = { premium: 5, tailormade: 15 }
@@ -40,9 +40,10 @@ export default async function handler(req, res) {
     let chat = null
 
     if (action === 'analyze') {
-      const ticker = String(req.body.ticker || '').toUpperCase()
-      const entry = byTicker[ticker]
-      if (!entry) return json(res, 400, { error: 'Unknown ticker (pick one from the list)' })
+      const ticker = String(req.body.ticker || '').trim().toUpperCase().replace('.', '-').slice(0, 10)
+      // Anything outside our list is looked up live, so any traded symbol works.
+      const entry = byTicker[ticker] || (await resolveTicker(ticker))
+      if (!entry) return json(res, 400, { error: `Couldn't find a traded stock or ETF with ticker "${ticker}"` })
       const [quote, stats, headlines] = await Promise.all([
         fetchQuote(ticker),
         fetchStats(ticker),
@@ -76,11 +77,11 @@ export default async function handler(req, res) {
         timeSpan: String(s.timeSpan || 'medium term').slice(0, 40),
         volatility: String(s.volatility || 'medium').slice(0, 20),
         maxPosPct: Math.max(5, Math.min(50, Number(s.maxPosPct) || 20)),
-        sectors: (Array.isArray(s.sectors) ? s.sectors : []).slice(0, 8).map((x) => String(x).slice(0, 30)),
+        sectors: (Array.isArray(s.sectors) ? s.sectors : []).slice(0, 11).map((x) => String(x).slice(0, 30)),
         themes: (Array.isArray(s.themes) ? s.themes : []).slice(0, 6).map((x) => String(x).slice(0, 30)),
         assetClass: String(s.assetClass || 'mixed').slice(0, 30),
       }
-      const universe = UNIVERSE.map((u) => ({ ticker: u.t, name: u.n, industry: u.ind, type: u.type }))
+      const universe = llmUniverse({ sectors: spec.sectors })
       const board = await runBuild({ spec, universe })
       const lines = board.portfolio.map((p) => `• ${p.ticker} ${p.weightPct}% — ${p.reason}`).join('\n')
       const cashLeft = 100 - board.portfolio.reduce((x, p) => x + p.weightPct, 0)

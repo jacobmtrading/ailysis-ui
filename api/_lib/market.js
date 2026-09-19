@@ -57,52 +57,80 @@ function parseEarnings(ev) {
   return { date: `${m[3]}-${m[1]}-${m[2]}`, confirmed: !m[4], timing }
 }
 
-// ---- Batched quotes: CNBC first (1 request for up to ~40 symbols), Stooq per-symbol fallback.
-// extended: also intraday high/low, P/E and the next earnings date (strategy scan).
+// ---- Batched quotes: CNBC first (40 symbols per request), Stooq per-symbol fallback.
+// extended: also name, security type, intraday high/low, P/E and next earnings date.
 export async function fetchQuotes(tickers, { extended = false } = {}) {
   const out = {}
   if (!tickers.length) return out
-  try {
-    for (let i = 0; i < tickers.length; i += 40) {
-      const chunk = tickers.slice(i, i + 40)
-      const symbols = chunk.map(cnbcSym).join('|')
-      const method = extended ? 'extended&events=1' : 'itv'
-      const url = `https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols=${encodeURIComponent(symbols)}&requestMethod=${method}&noform=1&partnerId=2&output=json`
-      const res = await fetch(url, { headers: UA })
-      if (!res.ok) continue
-      const data = await res.json()
-      let quotes = data?.FormattedQuoteResult?.FormattedQuote || []
-      if (!Array.isArray(quotes)) quotes = [quotes]
-      for (const q of quotes) {
-        const ticker = String(q.symbol || '').replace(/\./g, '-')
-        const price = num(q.last)
-        if (!ticker || !price) continue
-        out[ticker] = {
-          price,
-          dayChgPct: num(q.change_pct) ?? 0,
-          prevClose: num(q.previous_day_closing) ?? price,
-          ...(extended
-            ? { low: num(q.low) || null, high: num(q.high) || null, pe: num(q.pe), fpe: num(q.fpe), earnings: parseEarnings(q.EventData) }
-            : {}),
+  const chunks = []
+  for (let i = 0; i < tickers.length; i += 40) chunks.push(tickers.slice(i, i + 40))
+  const method = extended ? 'extended&events=1' : 'itv'
+  // Up to 6 requests at a time — the strategy scan quotes ~1,500 names.
+  for (let i = 0; i < chunks.length; i += 6) {
+    await Promise.all(
+      chunks.slice(i, i + 6).map(async (chunk) => {
+        try {
+          const symbols = chunk.map(cnbcSym).join('|')
+          const url = `https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols=${encodeURIComponent(symbols)}&requestMethod=${method}&noform=1&partnerId=2&output=json`
+          const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(10000) })
+          if (!res.ok) return
+          const data = await res.json()
+          let quotes = data?.FormattedQuoteResult?.FormattedQuote || []
+          if (!Array.isArray(quotes)) quotes = [quotes]
+          for (const q of quotes) {
+            const ticker = String(q.symbol || '').replace(/\./g, '-')
+            const price = num(q.last)
+            if (!ticker || !price) continue
+            out[ticker] = {
+              price,
+              dayChgPct: num(q.change_pct) ?? 0,
+              prevClose: num(q.previous_day_closing) ?? price,
+              ...(extended
+                ? {
+                    name: q.name || null,
+                    secType: q.subType || null,
+                    low: num(q.low) || null,
+                    high: num(q.high) || null,
+                    pe: num(q.pe),
+                    fpe: num(q.fpe),
+                    earnings: parseEarnings(q.EventData),
+                  }
+                : {}),
+            }
+          }
+        } catch {
+          /* fall through to Stooq */
         }
-      }
-    }
-  } catch {
-    /* fall through to Stooq */
+      })
+    )
   }
+  // Per-symbol fallback only for a handful — a CNBC outage must not fan out
+  // into a thousand Stooq requests.
   const missing = tickers.filter((t) => !out[t])
-  await Promise.all(
-    missing.map(async (t) => {
-      const q = await stooqQuote(t)
-      if (q) out[t] = q
-    })
-  )
+  if (missing.length <= 40) {
+    await Promise.all(
+      missing.map(async (t) => {
+        const q = await stooqQuote(t)
+        if (q) out[t] = q
+      })
+    )
+  }
   return out
 }
 
 export async function fetchQuote(ticker) {
   const quotes = await fetchQuotes([ticker])
   return quotes[ticker] || null
+}
+
+// A symbol that isn't in the universe but does trade (CNBC knows it), so
+// clients can analyze any ticker. Returns a universe-shaped entry or null.
+export async function resolveTicker(ticker) {
+  const t = String(ticker || '').trim().toUpperCase().replace('.', '-')
+  if (!/^[A-Z][A-Z0-9]{0,5}(-[A-Z])?$/.test(t)) return null
+  const q = (await fetchQuotes([t], { extended: true }))[t]
+  if (!q?.name) return null
+  return { t, n: q.name, ind: 'Other', type: q.secType === 'Exchange Traded Fund' ? 'etf' : 'stock', cap: null }
 }
 
 async function stooqQuote(ticker) {

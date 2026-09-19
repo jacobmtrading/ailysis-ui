@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import * as api from '../account'
 import LoadingFun from './LoadingFun'
 import { SCENARIOS } from '../../api/_lib/scenarios.js'
-import { byTicker } from '../../api/_lib/universe.js'
 
 // ---------------- Polar risk map geometry ----------------
 // Three axes, 120° apart. A security's dot is the score-weighted blend of the
@@ -43,6 +42,9 @@ const IND_COLORS = {
   Industrials: '#8a97a8',
   'Aerospace & Defence': '#3ec1c9',
   Communication: '#ef5da8',
+  Materials: '#b08a5a',
+  Utilities: '#d9a404',
+  'Real Estate': '#7a6ff0',
 }
 const indColor = (ind) => IND_COLORS[ind] || '#7d8a99'
 
@@ -168,7 +170,7 @@ function PolarMap({ data, weights, showProposals, sel, onSelect, onDismiss }) {
                 <div className={`ins-pop-slot ${above ? 'above' : 'below'}`} onClick={(e) => e.stopPropagation()}>
                   <div className={`ins-pop ${above ? 'above' : 'below'}`}>
                     <div className="ins-pop-title">
-                      {sel.ticker} <span>{sel.name || byTicker[sel.ticker]?.n}</span>
+                      {sel.ticker} <span>{sel.name}</span>
                     </div>
                     <div className="ins-pop-scores">
                       <span>Political {sel.political}</span>
@@ -466,7 +468,7 @@ export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
                   </div>
                   <div className="added-main">
                     <div className="added-name">
-                      {a.name || byTicker[a.ticker]?.n} <small>{a.industry}</small>
+                      {a.name || a.ticker} <small>{a.industry}</small>
                     </div>
                     <div className="added-reason">{a.reason}</div>
                   </div>

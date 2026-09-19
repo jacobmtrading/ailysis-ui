@@ -1,6 +1,6 @@
 // Idea scraper — 100% code, zero LLM tokens. It used to chase big daily
 // movers, i.e. buy after the move and then get stopped out on the pullback.
-// Signals now, all aimed at buying BEFORE the move:
+// Signals now, all aimed at buying BEFORE the move, across ~1,500 large names:
 //   1. Unusual dips: major, statistically unusual drops in names whose trend
 //      was intact (contrarian entry — see signals.js).
 //   2. Upcoming catalysts: earnings this stock historically moves big on,
@@ -15,10 +15,16 @@ import { byTicker, CORE_ETFS, SCAN_TICKERS, BENCHMARK, headlineNames } from './u
 import { fetchQuotes, fetchDailyBars, fetchPastEarningsDates, nyDay } from './market.js'
 import { classSplit } from './state.js'
 import { getJSON, setJSON } from './redis.js'
-import { computeBaseline, marketMoves, excessMove, dipSetup, catalystSetup, upcomingEvents, mentions } from './signals.js'
+import {
+  CATALYST, computeBaseline, marketMoves, excessMove, dipSetup, catalystSetup, upcomingEvents, mentions, daysBetween,
+} from './signals.js'
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (compatible; ailysis-paper-bot/1.0)' }
 const SCAN_KEY = 'ailysis:scan'
+const SCAN_VERSION = 2
+const EARNINGS_KEY = 'ailysis:earnings'
+const SCAN_BUDGET_MS = 12000 // leaves room for quotes + a board call inside the 60s function limit
+const SCAN_BATCH = 500
 
 export async function capitolBuys() {
   try {
@@ -44,6 +50,9 @@ export async function capitolBuys() {
   }
 }
 
+const decode = (s) =>
+  s.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').trim()
+
 // days: only headlines from the last N days (0 = any time).
 export async function newsHeadlines(name, ticker, limit = 4, days = 0) {
   try {
@@ -60,77 +69,133 @@ export async function newsHeadlines(name, ticker, limit = 4, days = 0) {
   }
 }
 
-// Major non-earnings events (investor days, keynotes, FDA…) from two weeks of
-// news; signals.js keeps only the forward-looking headlines.
-const EVENT_QUERY = '"investor day" OR "analyst day" OR "capital markets day" OR keynote OR "launch event" OR unveil OR FDA OR PDUFA OR "data readout"'
-const decode = (s) =>
-  s.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').trim()
-
-export async function eventHeadlines(entry, today) {
-  const names = headlineNames(entry)
+async function rssItems(query) {
   try {
-    const q = encodeURIComponent(`(${names.map((n) => `"${n}"`).join(' OR ')}) (${EVENT_QUERY}) when:14d`)
-    const res = await fetch(`https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`, {
+    const res = await fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`, {
       headers: UA,
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) return []
     const xml = await res.text()
-    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(([, it]) => {
-      const pub = Date.parse(it.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || '')
-      return {
-        title: decode(it.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '').replace(/\s+-\s+[^-]+$/, ''),
-        pub: pub ? new Date(pub).toISOString().slice(0, 10) : '1970-01-01',
-      }
-    })
-    return upcomingEvents(items.filter((i) => i.title && mentions(names, i.title)), today)
+    return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)]
+      .map(([, it]) => {
+        const pub = Date.parse(it.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || '')
+        return {
+          title: decode(it.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '').replace(/\s+-\s+[^-]+$/, ''),
+          pub: pub ? new Date(pub).toISOString().slice(0, 10) : '1970-01-01',
+        }
+      })
+      .filter((i) => i.title)
   } catch {
     return []
   }
 }
 
-async function mapLimit(items, limit, fn) {
-  const out = new Array(items.length)
-  let next = 0
-  const worker = async () => {
-    while (next < items.length) {
-      const i = next++
-      out[i] = await fn(items[i])
+// Upcoming company events from a handful of generic news searches, matched to
+// scanned companies by name — ~11 requests a day instead of one per company.
+// Press releases lead with the company ("BWX Technologies to Hold Investor
+// Day on …"), so the name must appear within the first five words.
+const EVENT_QUERIES = [
+  '"to host investor day"', '"to hold investor day"', '"analyst day"', '"capital markets day"', '"investor day"',
+  'PDUFA', '"FDA decision"', '"data readout"', '"to unveil"', 'keynote "next week"', '"launch event"',
+]
+
+export async function eventNews(today, tickers = SCAN_TICKERS) {
+  const lists = await Promise.all(EVENT_QUERIES.map((q) => rssItems(`${q} when:14d`)))
+  const seen = new Set()
+  const items = lists.flat().filter((i) => !seen.has(i.title) && seen.add(i.title))
+
+  const key = (w) => w.replace(/['’]s$/i, '').replace(/[^\p{L}\p{N}&]/gu, '').toLowerCase()
+  const index = new Map() // first word of a company name -> [{ t, name }]
+  for (const t of tickers) {
+    const e = byTicker[t]
+    if (e?.type !== 'stock') continue
+    for (const name of headlineNames(e)) {
+      const k = key(name.split(' ')[0])
+      if (!index.has(k)) index.set(k, [])
+      index.get(k).push({ t, name })
     }
   }
+
+  const byCompany = {}
+  for (const item of items) {
+    const hits = new Set()
+    item.title.split(/\s+/).slice(0, 5).forEach((w, pos) => {
+      for (const c of index.get(key(w)) || []) {
+        // One-word names ("Strategy", "Target", "Block") only count as the headline's subject.
+        if ((pos === 0 || /\s/.test(c.name)) && mentions([c.name], item.title)) hits.add(c.t)
+      }
+    })
+    for (const t of hits) (byCompany[t] ||= []).push(item)
+  }
+  const news = {}
+  for (const [t, list] of Object.entries(byCompany)) {
+    const events = upcomingEvents(list, today)
+    if (events.length) news[t] = events
+  }
+  return news
+}
+
+// ---------- Earnings report history (Nasdaq), cached until the next report ----------
+async function loadEarnings() {
+  return { data: (await getJSON(EARNINGS_KEY).catch(() => null)) || {}, dirty: false }
+}
+
+const addDays = (day, n) => new Date(Date.parse(day) + n * 86400e3).toISOString().slice(0, 10)
+const cachedReports = (ec, t, today) => (ec.data[t]?.until >= today ? ec.data[t].dates : undefined)
+
+async function reportDates(t, nextDate, ec, today) {
+  const hit = cachedReports(ec, t, today)
+  if (hit) return hit
+  const dates = (await fetchPastEarningsDates(t)).slice(0, 4)
+  // Keep until the next report is out; retry soon if Nasdaq returned nothing.
+  const until = !dates.length ? addDays(today, 3) : nextDate && nextDate > today ? nextDate : addDays(today, 45)
+  ec.data[t] = { dates, until }
+  ec.dirty = true
+  return dates
+}
+
+// Run fn over items with `limit` in flight, starting no new work after the deadline.
+async function eachUntil(items, limit, deadline, fn) {
+  let next = 0
+  const worker = async () => {
+    while (next < items.length && Date.now() < deadline) await fn(items[next++])
+  }
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
-  return out
 }
 
 // Per-stock baselines (volatility, 200-day average, typical earnings move…)
-// and upcoming-event headlines. These only change once a day.
-export async function buildScan(today = nyDay()) {
-  const isStock = (t) => byTicker[t].type === 'stock'
-  const [bars, reports, events] = await Promise.all([
-    mapLimit(SCAN_TICKERS, 12, fetchDailyBars),
-    mapLimit(SCAN_TICKERS, 6, (t) => (isStock(t) ? fetchPastEarningsDates(t) : [])),
-    mapLimit(SCAN_TICKERS, 6, (t) => (isStock(t) ? eventHeadlines(byTicker[t], today) : [])),
-  ])
-  const baselines = {}
-  const news = {}
-  SCAN_TICKERS.forEach((t, i) => {
-    const b = computeBaseline(bars[i], today, reports[i])
-    if (b) baselines[t] = b
-    if (events[i].length) news[t] = events[i]
-  })
-  return { day: today, builtAt: Date.now(), baselines, news }
-}
-
-// Built on the first scrape of the New York day, reused from Redis after that.
-export async function loadScan() {
+// change once a day, but charting ~1,500 names takes longer than one 60s
+// function. Each scrape builds for up to budgetMs (benchmark and largest names
+// first) and saves progress; strategies use whatever is ready. Berlin-morning
+// scrapes before the NYSE opens warm it up.
+export async function loadScan({ budgetMs = SCAN_BUDGET_MS } = {}) {
+  const deadline = Date.now() + budgetMs
   const today = nyDay()
-  const cached = await getJSON(SCAN_KEY).catch(() => null)
-  if (cached?.day === today) return cached
-  const scan = await buildScan(today)
-  // Don't pin a half-failed build (data source hiccup) for the whole day.
-  if (Object.keys(scan.baselines).length >= SCAN_TICKERS.length * 0.8) {
-    await setJSON(SCAN_KEY, scan).catch(() => {})
+  let scan = await getJSON(SCAN_KEY).catch(() => null)
+  if (scan?.v !== SCAN_VERSION || scan.day !== today) scan = { v: SCAN_VERSION, day: today, news: null, baselines: {} }
+  const todo = SCAN_TICKERS.filter((t) => !(t in scan.baselines)).slice(0, SCAN_BATCH)
+  if (scan.news && !todo.length) return scan
+
+  if (!scan.news) scan.news = await eventNews(today)
+  if (todo.length) {
+    const ec = await loadEarnings()
+    const quotes = await fetchQuotes(todo, { extended: true }) // next earnings dates
+    await eachUntil(todo, 16, deadline, async (t) => {
+      const isStock = byTicker[t].type === 'stock'
+      const next = quotes[t]?.earnings?.date
+      const inWindow = next && daysBetween(today, next) >= CATALYST.minDays && daysBetween(today, next) <= CATALYST.maxDays
+      const [bars, dates] = await Promise.all([
+        fetchDailyBars(t),
+        !isStock ? [] : inWindow ? reportDates(t, next, ec, today) : cachedReports(ec, t, today),
+      ])
+      const b = computeBaseline(bars, today, dates || [])
+      if (b) b.reportsKnown = Boolean(dates)
+      scan.baselines[t] = b // null = no usable history; not retried today
+    })
+    if (ec.dirty) await setJSON(EARNINGS_KEY, ec.data).catch(() => {})
   }
+  await setJSON(SCAN_KEY, scan).catch(() => {})
   return scan
 }
 
@@ -171,7 +236,8 @@ export function etfRebalanceCandidate(state) {
 }
 
 // Pick the single best candidate not already held / recently discussed.
-// Returns { candidate, waiting } — waiting: dips still falling, re-checked next run.
+// Returns { candidate, waiting, scanned } — waiting: dips still falling,
+// re-checked next run; scanned: names with today's baseline.
 // usOpen=false (Berlin morning before the NYSE opens) skips the dip/catalyst
 // scan: quotes still carry yesterday's move, and buying that at the open is
 // exactly how the fund used to end up buying after the move.
@@ -181,10 +247,11 @@ export async function findCandidate(state, scan, { usOpen = true } = {}) {
   const free = (t) => byTicker[t] && !held.has(t) && !((state.cooldowns[t] || 0) > now)
   const today = nyDay()
   const base = scan?.baselines || {}
+  const ready = SCAN_TICKERS.filter((t) => base[t])
 
   const [capitol, quotes] = await Promise.all([
     capitolBuys(),
-    usOpen ? fetchQuotes(SCAN_TICKERS, { extended: true }) : {},
+    usOpen ? fetchQuotes(ready, { extended: true }) : {},
   ])
   const mkt = marketMoves(quotes[BENCHMARK], base[BENCHMARK])
 
@@ -194,14 +261,24 @@ export async function findCandidate(state, scan, { usOpen = true } = {}) {
     if (c && (!picks[t] || c.score > picks[t].score)) picks[t] = c
   }
 
-  for (const t of usOpen ? SCAN_TICKERS : []) {
+  let ec = null
+  for (const t of usOpen ? ready : []) {
     if (!free(t)) continue
     const entry = byTicker[t]
-    const dip = dipSetup(entry, quotes[t], base[t], mkt, today)
+    let b = base[t]
+    let dip = dipSetup(entry, quotes[t], b, mkt, today)
+    // Was the drop right after earnings? Only looked up for actual dips (rare).
+    if (dip && !dip.waiting && !b.reportsKnown) {
+      ec = ec || (await loadEarnings())
+      const dates = await reportDates(t, quotes[t]?.earnings?.date, ec, today)
+      b = { ...b, lastReport: dates[0] || null, reportsKnown: true }
+      dip = dipSetup(entry, quotes[t], b, mkt, today)
+    }
     if (dip?.waiting) waiting.push(t)
     else consider(t, dip)
-    consider(t, catalystSetup(entry, quotes[t], base[t], mkt, scan?.news?.[t], today))
+    consider(t, catalystSetup(entry, quotes[t], b, mkt, scan?.news?.[t], today))
   }
+  if (ec?.dirty) await setJSON(EARNINGS_KEY, ec.data).catch(() => {})
 
   // Congressional buys are disclosed weeks late — skip names that already ran.
   for (const c of capitol) {
@@ -228,7 +305,7 @@ export async function findCandidate(state, scan, { usOpen = true } = {}) {
     etf && (!top || etf.score >= top.score)
       ? { entry: etf.entry, strategy: 'rebalance', score: etf.score, signals: [etf.signal] }
       : top
-  if (!chosen) return { candidate: null, waiting }
+  if (!chosen) return { candidate: null, waiting, scanned: ready.length }
 
   const { entry, ...pick } = chosen
   let headlines
@@ -240,5 +317,5 @@ export async function findCandidate(state, scan, { usOpen = true } = {}) {
   } else {
     headlines = await newsHeadlines(entry.n, entry.t)
   }
-  return { candidate: { ...entry, ...pick, headlines }, waiting }
+  return { candidate: { ...entry, ...pick, headlines }, waiting, scanned: ready.length }
 }

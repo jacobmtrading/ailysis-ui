@@ -5,8 +5,8 @@
 import { sessionUser, loadUserData, saveUserData, TIER_RANK } from './_lib/auth.js'
 import { runMap, runSwot, runStress } from './_lib/insights.js'
 import { scenarioById } from './_lib/scenarios.js'
-import { berlinDay } from './_lib/market.js'
-import { byTicker, UNIVERSE } from './_lib/universe.js'
+import { berlinDay, resolveTicker } from './_lib/market.js'
+import { byTicker, llmUniverse } from './_lib/universe.js'
 import { json } from './_lib/http.js'
 
 // Insights are cheaper than full board sessions, so they get their own
@@ -23,18 +23,23 @@ export default async function handler(req, res) {
     const { action } = req.body || {}
     if (!['map', 'swot', 'stress'].includes(action)) return json(res, 400, { error: 'unknown action' })
 
-    // Validate + enrich positions against the universe.
-    const items = (Array.isArray(req.body.items) ? req.body.items : [])
+    // Validate + enrich positions: universe names first, anything else looked up live.
+    const wanted = (Array.isArray(req.body.items) ? req.body.items : [])
       .slice(0, 15)
       .map((p) => ({
-        ticker: String(p?.ticker || '').toUpperCase().slice(0, 8),
+        ticker: String(p?.ticker || '').trim().toUpperCase().replace('.', '-').slice(0, 10),
         weightPct: Math.max(1, Math.min(100, Number(p?.weightPct) || 0)),
       }))
-      .filter((p) => p.ticker && byTicker[p.ticker])
-      .map((p) => {
-        const u = byTicker[p.ticker]
-        return { ticker: p.ticker, name: u.n, industry: u.ind, type: u.type, weightPct: p.weightPct }
-      })
+      .filter((p) => p.ticker)
+    const resolved = await Promise.all(wanted.map((p) => byTicker[p.ticker] || resolveTicker(p.ticker)))
+    const known = {}
+    const items = []
+    wanted.forEach((p, i) => {
+      const u = resolved[i]
+      if (!u) return
+      known[u.t] = u
+      items.push({ ticker: u.t, name: u.n, industry: u.ind, type: u.type, weightPct: p.weightPct })
+    })
     if (!items.length) return json(res, 400, { error: 'No known tickers provided' })
 
     // Single-stock tools ride on the Premium analysis feature; portfolio-level
@@ -54,11 +59,12 @@ export default async function handler(req, res) {
     let out = null
 
     if (action === 'map') {
-      const universe = UNIVERSE.map((u) => ({ ticker: u.t, name: u.n, industry: u.ind, type: u.type }))
+      const universe = llmUniverse({ exclude: items.map((i) => i.ticker) })
       out = await runMap({ items, universe })
       // The client draws industry clusters — attach industries it can trust.
+      const lookup = (t) => byTicker[t] || known[t]
       const withInd = (list) =>
-        list.map((s) => ({ ...s, name: byTicker[s.ticker]?.n, industry: byTicker[s.ticker]?.ind, type: byTicker[s.ticker]?.type }))
+        list.map((s) => ({ ...s, name: lookup(s.ticker)?.n, industry: lookup(s.ticker)?.ind, type: lookup(s.ticker)?.type }))
       out = { stocks: withInd(out.stocks), proposals: withInd(out.proposals) }
     }
 

@@ -230,10 +230,15 @@ const NAMED_EVENT_RE = /\b(investor day|analyst day|capital markets day|keynote|
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
 // Does the headline name the company itself (not just mention its event words)?
+// Single-word names match case-sensitively ("Block", "Target", "Meta" are also
+// ordinary words); multi-word names and ALL-CAPS headlines match in any case.
 export function mentions(names, title) {
-  return names.some((name) =>
-    new RegExp(`(^|[^\\w&])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w&])`, 'i').test(title)
-  )
+  const shouting = title === title.toUpperCase()
+  return names.some((name) => {
+    const flags = /\s/.test(name) || shouting ? 'iu' : 'u'
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    return new RegExp(`(^|[^\\p{L}\\p{N}&])${escaped}($|[^\\p{L}\\p{N}&])`, flags).test(title)
+  })
 }
 
 const kindOf = (t) =>

@@ -5,6 +5,7 @@ import { loadState, saveState, portfolioValue, classSplit, industryWeights } fro
 import { anyMarketOpen, isNyseOpen, berlinDay, fetchQuote, fetchStats } from '../_lib/market.js'
 import { findCandidate, loadScan } from '../_lib/scraper.js'
 import { buildPlan, describePlan } from '../_lib/signals.js'
+import { SCAN_TICKERS } from '../_lib/universe.js'
 import { runBoard } from '../_lib/board.js'
 import { assembleChat, applyGuardrails, executeBuy } from '../_lib/portfolio.js'
 import { authorized, json } from '../_lib/http.js'
@@ -26,10 +27,11 @@ export default async function handler(req, res) {
     }
 
     const scan = await loadScan()
-    const { candidate, waiting } = await findCandidate(state, scan, { usOpen: isNyseOpen() || force })
+    const { candidate, waiting, scanned } = await findCandidate(state, scan, { usOpen: isNyseOpen() || force })
+    const coverage = `${scanned}/${SCAN_TICKERS.length} names with today's baseline`
     if (!candidate) {
       await saveState(state)
-      return json(res, 200, { ok: true, candidate: null, waiting, note: 'nothing interesting found — no tokens spent' })
+      return json(res, 200, { ok: true, candidate: null, waiting, coverage, note: 'nothing interesting found — no tokens spent' })
     }
 
     // Real data for the board: live quote + chart stats + true portfolio state.
@@ -113,6 +115,7 @@ export default async function handler(req, res) {
       plan,
       guardrailNotes,
       waiting,
+      coverage,
     })
   } catch (err) {
     json(res, 500, { error: String(err.message || err) })

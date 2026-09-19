@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import * as api from '../account'
 import LoadingFun from './LoadingFun'
-import { UNIVERSE } from '../../api/_lib/universe.js'
 
 const TOOL_LABEL = { map: 'Risk map', swot: 'SWOT', stress: 'Stress test' }
 const TOOL_BLURB = {
@@ -11,10 +10,13 @@ const TOOL_BLURB = {
 }
 const IS_TOOL = (t) => t === 'map' || t === 'swot' || t === 'stress'
 
-const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer', 'Industrials', 'Aerospace & Defence', 'Communication']
+const SECTORS = ['Technology', 'Healthcare', 'Financials', 'Energy', 'Consumer', 'Industrials', 'Aerospace & Defence', 'Communication', 'Materials', 'Utilities', 'Real Estate']
 const THEMES = ['Momentum', 'Value', 'Growth', 'Dividends', 'Picks & Shovels', 'Defensive']
 const TIER_RANK = { free: 0, premium: 1, tailormade: 2 }
 const TIER_LABEL = { premium: 'Premium', tailormade: 'Tailormade' }
+
+const optionLabel = (m) => (m.unlisted ? `${m.t} — ${m.n}` : `${m.t} — ${m.n} (${m.type === 'etf' ? 'ETF' : m.ind})`)
+const subjectLabel = (m) => (m.unlisted ? m.t : `${m.t} — ${m.n}`)
 
 export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, onUpgrade, onClose }) {
   const [tab, setTab] = useState('analyze')
@@ -24,6 +26,8 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
   const [mine, setMine] = useState([])
   const [activity, setActivity] = useState([])
   const [lastCtx, setLastCtx] = useState(null)
+  // The stock list (thousands of names) is its own chunk, fetched when the room opens.
+  const [uni, setUni] = useState(null)
 
   // analyze
   const [query, setQuery] = useState('')
@@ -45,12 +49,24 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
     if (open) setActivity(api.localSessions())
   }, [open, user])
 
+  useEffect(() => {
+    if (open && !uni) import('../../api/_lib/universe.js').then((m) => setUni(m)).catch(() => {})
+  }, [open, uni])
+
   const tier = user?.tier || 'free'
   const matches = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return []
-    return UNIVERSE.filter((u) => u.t.toLowerCase().startsWith(q) || u.n.toLowerCase().includes(q)).slice(0, 6)
-  }, [query])
+    if (!uni || !query.trim()) return []
+    const found = uni.searchUniverse(query, 8)
+    // Not in our list? Any traded symbol can still be looked up live — offered
+    // when the query looks like a ticker and isn't just the start of a name ("nestle").
+    const typed = query.trim().toUpperCase().replace('.', '-')
+    const fold = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    const isName = found.some((m) => fold(m.n).startsWith(fold(query.trim())))
+    if (/^[A-Z][A-Z0-9]{0,5}(-[A-Z])?$/.test(typed) && !uni.byTicker[typed] && !isName) {
+      found.push({ t: typed, n: 'not in our list, look it up live', unlisted: true })
+    }
+    return found
+  }, [query, uni])
 
   // "My sessions" merges server-side board chats with locally-logged insight
   // opens, each tagged with a note of what it was, newest first.
@@ -85,10 +101,10 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
     if (IS_TOOL(tab)) {
       if (toolMode === 'portfolio') return portfolioSubject
       const s = pickedStock || matches[0]
-      return s ? { items: [{ ticker: s.t, weightPct: 100 }], label: `${s.t} — ${s.n}`, need: 'premium' } : null
+      return s ? { items: [{ ticker: s.t, weightPct: 100 }], label: subjectLabel(s), need: 'premium' } : null
     }
     if (tab === 'analyze' && matches[0])
-      return { items: [{ ticker: matches[0].t, weightPct: 100 }], label: `${matches[0].t} — ${matches[0].n}`, need: 'premium' }
+      return { items: [{ ticker: matches[0].t, weightPct: 100 }], label: subjectLabel(matches[0]), need: 'premium' }
     if (tab === 'check' && portfolioSubject) return portfolioSubject
     if (lastCtx) return { items: lastCtx.items, label: lastCtx.label, need: lastCtx.items.length > 1 ? 'tailormade' : 'premium' }
     return null
@@ -148,6 +164,8 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
     setActivity(api.localSessions())
     onOpenInsights({ view, items: subject.items, label: subject.label })
   }
+
+  const searchHint = query.trim() && (!uni ? 'Loading the stock list…' : !matches.length ? 'No match — try the ticker symbol.' : null)
 
   // Same position entry the portfolio analysis uses — shared with the insight
   // tools so a stress test can be fed a portfolio without running a check first.
@@ -218,10 +236,11 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
             )}
             <input
               className="menu-input"
-              placeholder="Search ticker or name (e.g. NVDA)"
+              placeholder="Search any stock by ticker or name (e.g. NVDA, Siemens)"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
+            {searchHint && <div className="menu-note">{searchHint}</div>}
             {matches.map((m) => (
               <button
                 key={m.t}
@@ -229,7 +248,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
                 disabled={busy}
                 onClick={() => tryRun('premium', () => api.analyzeStock(m.t))}
               >
-                {busy ? '…' : `${m.t} — ${m.n} (${m.type === 'etf' ? 'ETF' : m.ind})`}
+                {busy ? '…' : optionLabel(m)}
                 {locked('premium') ? ' · locked' : ''}
               </button>
             ))}
@@ -324,20 +343,21 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
               <>
                 <input
                   className="menu-input"
-                  placeholder="Search ticker or name (e.g. NVDA)"
+                  placeholder="Search any stock by ticker or name (e.g. NVDA, Siemens)"
                   value={query}
                   onChange={(e) => {
                     setQuery(e.target.value)
                     setPickedStock(null)
                   }}
                 />
+                {searchHint && <div className="menu-note">{searchHint}</div>}
                 {matches.map((m) => (
                   <button
                     key={m.t}
                     className={`menu-link ${pickedStock?.t === m.t ? 'picked' : ''}`}
                     onClick={() => setPickedStock(m)}
                   >
-                    {m.t} — {m.n} ({m.type === 'etf' ? 'ETF' : m.ind})
+                    {optionLabel(m)}
                   </button>
                 ))}
               </>
