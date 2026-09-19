@@ -6,6 +6,7 @@ import ChatOverlay from './components/ChatOverlay'
 import PositionsOverlay from './components/PositionsOverlay'
 import OrderRow from './components/OrderRow'
 import TutorialOverlay from './components/TutorialOverlay'
+import WhatsNew from './components/WhatsNew'
 import AllDiscussionsOverlay from './components/AllDiscussionsOverlay'
 import MenuOverlay from './components/MenuOverlay'
 import StudioOverlay from './components/StudioOverlay'
@@ -147,6 +148,8 @@ export default function App() {
               ?
             </button>
           </div>
+
+          <WhatsNew show={introDone} />
 
           <div className="tr-header">
             <div className="tr-titlewrap">
