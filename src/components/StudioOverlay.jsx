@@ -18,7 +18,7 @@ const TIER_LABEL = { premium: 'Premium', tailormade: 'Tailormade' }
 const optionLabel = (m) => (m.unlisted ? `${m.t} — ${m.n}` : `${m.t} — ${m.n} (${m.type === 'etf' ? 'ETF' : m.ind})`)
 const subjectLabel = (m) => (m.unlisted ? m.t : `${m.t} — ${m.n}`)
 
-export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, onUpgrade, onClose }) {
+export default function StudioOverlay({ open, user, initialTab, onOpenChat, onOpenInsights, onUpgrade, onClose }) {
   const [tab, setTab] = useState('analyze')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
@@ -43,6 +43,15 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
   // insight tools: run on a single searched stock or on the entered positions
   const [toolMode, setToolMode] = useState('stock')
   const [pickedStock, setPickedStock] = useState(null)
+
+  // Opened from the menu's feature list: land on the feature that was tapped.
+  useEffect(() => {
+    if (open) {
+      setTab(initialTab || 'analyze')
+      setUpsell(null)
+      setErr(null)
+    }
+  }, [open, initialTab])
 
   useEffect(() => {
     if (open && user) api.myChats().then((d) => setMine(d.chats || [])).catch(() => {})
@@ -219,7 +228,7 @@ export default function StudioOverlay({ open, user, onOpenChat, onOpenInsights, 
           Check{locked('tailormade') ? ' · locked' : ''}
         </button>
         {Object.entries(TOOL_LABEL).map(([id, label]) => (
-          <button key={id} className={`dr-cell tool ${tab === id ? 'active' : ''}`} onClick={() => pickTab(id)}>
+          <button key={id} className={`dr-cell ${tab === id ? 'active' : ''}`} onClick={() => pickTab(id)}>
             {label}
           </button>
         ))}

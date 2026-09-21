@@ -226,14 +226,23 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
 
             <div className="menu-section">
               <div className="menu-heading">Tools</div>
-              <button className="menu-link" onClick={onOpenStudio}>
+              <button className="menu-link" onClick={() => onOpenStudio('analyze')}>
                 Personalized analysis {user.tier === 'free' ? '🔒' : ''}
               </button>
-              <button className="menu-link" onClick={onOpenStudio}>
+              <button className="menu-link" onClick={() => onOpenStudio('build')}>
                 Portfolio builder {user.tier !== 'tailormade' ? '🔒' : ''}
               </button>
-              <button className="menu-link" onClick={onOpenStudio}>
+              <button className="menu-link" onClick={() => onOpenStudio('check')}>
                 Check my portfolio {user.tier !== 'tailormade' ? '🔒' : ''}
+              </button>
+              <button className="menu-link" onClick={() => onOpenStudio('map')}>
+                Risk map {user.tier === 'free' ? '🔒' : ''}
+              </button>
+              <button className="menu-link" onClick={() => onOpenStudio('swot')}>
+                SWOT {user.tier === 'free' ? '🔒' : ''}
+              </button>
+              <button className="menu-link" onClick={() => onOpenStudio('stress')}>
+                Stress test {user.tier === 'free' ? '🔒' : ''}
               </button>
             </div>
 

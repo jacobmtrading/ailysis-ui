@@ -57,6 +57,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuExpandTier, setMenuExpandTier] = useState(null)
   const [studioOpen, setStudioOpen] = useState(false)
+  const [studioTab, setStudioTab] = useState('analyze')
   const [insightsCtx, setInsightsCtx] = useState(null)
   const [adminOpen, setAdminOpen] = useState(false)
   const [user, setUser] = useState(null)
@@ -285,12 +286,16 @@ export default function App() {
           setMenuExpandTier(null)
           setResetToken(null)
         }}
-        onOpenStudio={() => setStudioOpen(true)}
+        onOpenStudio={(tab) => {
+          setStudioTab(tab || 'analyze')
+          setStudioOpen(true)
+        }}
         onOpenAdmin={() => setAdminOpen(true)}
       />
       <StudioOverlay
         open={studioOpen}
         user={user}
+        initialTab={studioTab}
         onOpenChat={setActiveOrder}
         onOpenInsights={setInsightsCtx}
         onUpgrade={(tier) => {
