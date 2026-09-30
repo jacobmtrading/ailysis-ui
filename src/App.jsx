@@ -117,11 +117,6 @@ export default function App() {
           <div className="top-spacer" />
         </div>
 
-        <div className="landing-head">
-          <div className="landing-title">Think less, profit more.</div>
-          <div className="landing-sub">An AI board of agents that debates every call. Swipe to explore.</div>
-        </div>
-
         <FeatureCarousel user={user} onPick={pickFeature} />
       </section>
 

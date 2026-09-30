@@ -1,4 +1,3 @@
-import { useRef, useState } from 'react'
 import { FEATURES, TIER_LABEL, isLocked } from '../data/features'
 
 // Line icons, one per feature, drawn on a 48×48 grid.
@@ -54,22 +53,9 @@ const ORDER = [...FEATURES].reverse()
 
 // Landing page body: one feature at a time, swipe left/right, tap to open.
 export default function FeatureCarousel({ user, onPick }) {
-  const trackRef = useRef(null)
-  const [idx, setIdx] = useState(0)
-
-  const onScroll = () => {
-    const el = trackRef.current
-    if (el) setIdx(Math.round(el.scrollLeft / el.clientWidth))
-  }
-  const go = (i) => {
-    const el = trackRef.current
-    const n = Math.max(0, Math.min(ORDER.length - 1, i))
-    if (el) el.scrollTo({ left: n * el.clientWidth, behavior: 'smooth' })
-  }
-
   return (
     <div className="feat">
-      <div className="feat-track" ref={trackRef} onScroll={onScroll}>
+      <div className="feat-track">
         {ORDER.map((f) => {
           const badge = badgeFor(f, user)
           return (
@@ -86,20 +72,6 @@ export default function FeatureCarousel({ user, onPick }) {
             </div>
           )
         })}
-      </div>
-
-      <div className="feat-nav">
-        <button className="feat-arrow" onClick={() => go(idx - 1)} disabled={idx === 0} aria-label="Previous feature">
-          ‹
-        </button>
-        <div className="feat-dots">
-          {ORDER.map((f, i) => (
-            <button key={f.id} className={`feat-dot ${i === idx ? 'active' : ''}`} onClick={() => go(i)} aria-label={f.name} />
-          ))}
-        </div>
-        <button className="feat-arrow" onClick={() => go(idx + 1)} disabled={idx === ORDER.length - 1} aria-label="Next feature">
-          ›
-        </button>
       </div>
     </div>
   )

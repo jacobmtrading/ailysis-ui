@@ -1843,19 +1843,6 @@ body {
   font-weight: 800;
   letter-spacing: -0.6px;
 }
-.landing-head { padding: 18px 22px 4px; }
-.landing-title {
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: -0.9px;
-  line-height: 1.08;
-}
-.landing-sub {
-  margin-top: 8px;
-  font-size: 15px;
-  line-height: 1.4;
-  color: var(--muted);
-}
 
 .feat {
   flex: 1 1 auto;
@@ -1949,41 +1936,6 @@ body {
 }
 .feat-card.dark .feat-cta { background: var(--green); color: #fff; }
 
-.feat-nav {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 14px 22px 0;
-}
-.feat-arrow {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1.5px solid var(--hair);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  padding-bottom: 2px;
-}
-.feat-arrow:disabled { opacity: 0.3; cursor: default; }
-.feat-dots { display: flex; gap: 7px; }
-.feat-dot {
-  width: 7px;
-  height: 7px;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: var(--faint);
-  cursor: pointer;
-  transition: width 0.2s ease, background 0.2s ease;
-}
-.feat-dot.active { width: 20px; background: var(--black); }
 
 /* ---------------- AI portfolio (members-only, opened over the landing) ---------------- */
 .portfolio-view {
