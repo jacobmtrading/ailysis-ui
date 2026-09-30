@@ -149,7 +149,7 @@ function PolarMap({ data, weights, showProposals, sel, onSelect, onDismiss }) {
                 onSelect({ ...s, ...pt, isProposal: false })
               }}
             >
-              <circle cx={pt.x} cy={pt.y} r={r} fill={indColor(s.industry)} stroke="#fff" strokeWidth="2" />
+              <circle cx={pt.x} cy={pt.y} r={r} fill={indColor(s.industry)} stroke="#000" strokeWidth="2" />
               <text x={pt.x} y={pt.y + r + 14} textAnchor="middle" className="ins-dot-label">
                 {s.ticker}
               </text>

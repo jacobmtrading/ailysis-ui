@@ -1,7 +1,7 @@
 // Fetches live state from the backend and reshapes it for the UI.
 // Returns null when the backend isn't live yet (UI falls back to demo data).
 
-const PALETTE = ['#101012', '#06c167', '#0b5cff', '#7d3cff', '#ff9900', '#c4c4c8', '#5b6167']
+const PALETTE = ['#f5f5f7', '#06c167', '#0b5cff', '#7d3cff', '#ff9900', '#c4c4c8', '#5b6167']
 
 const badgeFor = (ticker) => {
   let h = 0
@@ -39,10 +39,10 @@ function buildPies(state) {
     .slice(0, 6)
   const cashPct = state.classSplit?.cashPct ?? 0
   const industryPie = industries.map(([label, value], i) => ({ label, value: Math.round(value), color: PALETTE[i % PALETTE.length] }))
-  if (cashPct >= 1) industryPie.push({ label: 'Cash', value: Math.round(cashPct), color: '#e3e3e6' })
+  if (cashPct >= 1) industryPie.push({ label: 'Cash', value: Math.round(cashPct), color: '#3a3a3c' })
 
   const assetPie = [
-    { label: 'Stocks', value: Math.round(state.classSplit?.stocksPct ?? 0), color: '#101012' },
+    { label: 'Stocks', value: Math.round(state.classSplit?.stocksPct ?? 0), color: '#f5f5f7' },
     { label: 'ETFs', value: Math.round(state.classSplit?.etfsPct ?? 0), color: '#06c167' },
     { label: 'Cash', value: Math.round(cashPct), color: '#c4c4c8' },
   ].filter((s) => s.value >= 1)

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 
 // Asset-class palette (matches the Asset class donut): stocks black, ETFs green.
-const TYPE_COLOR = { stock: '#101012', etf: '#06c167' }
+const TYPE_COLOR = { stock: '#5b6167', etf: '#06c167' }
 
 const SORTS = [
   { key: 'chgD', label: 'Day' },

@@ -49,6 +49,9 @@ function badgeFor(feature, user) {
   return { text: `${text} ✓`, cls: 'open' }
 }
 
+// The landing runs the list back to front: stress test first, AI portfolio last.
+const ORDER = [...FEATURES].reverse()
+
 // Landing page body: one feature at a time, swipe left/right, tap to open.
 export default function FeatureCarousel({ user, onPick }) {
   const trackRef = useRef(null)
@@ -60,18 +63,18 @@ export default function FeatureCarousel({ user, onPick }) {
   }
   const go = (i) => {
     const el = trackRef.current
-    const n = Math.max(0, Math.min(FEATURES.length - 1, i))
+    const n = Math.max(0, Math.min(ORDER.length - 1, i))
     if (el) el.scrollTo({ left: n * el.clientWidth, behavior: 'smooth' })
   }
 
   return (
     <div className="feat">
       <div className="feat-track" ref={trackRef} onScroll={onScroll}>
-        {FEATURES.map((f, i) => {
+        {ORDER.map((f) => {
           const badge = badgeFor(f, user)
           return (
             <div className="feat-slide" key={f.id}>
-              <button className={`feat-card ${i === 0 ? 'dark' : ''}`} onClick={() => onPick(f)}>
+              <button className={`feat-card ${f.id === 'portfolio' ? 'dark' : ''}`} onClick={() => onPick(f)}>
                 <span className={`feat-badge ${badge.cls}`}>{badge.text}</span>
                 <svg className="feat-icon" viewBox="0 0 48 48" width="64" height="64" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                   {ICONS[f.id]}
@@ -90,11 +93,11 @@ export default function FeatureCarousel({ user, onPick }) {
           ‹
         </button>
         <div className="feat-dots">
-          {FEATURES.map((f, i) => (
+          {ORDER.map((f, i) => (
             <button key={f.id} className={`feat-dot ${i === idx ? 'active' : ''}`} onClick={() => go(i)} aria-label={f.name} />
           ))}
         </div>
-        <button className="feat-arrow" onClick={() => go(idx + 1)} disabled={idx === FEATURES.length - 1} aria-label="Next feature">
+        <button className="feat-arrow" onClick={() => go(idx + 1)} disabled={idx === ORDER.length - 1} aria-label="Next feature">
           ›
         </button>
       </div>

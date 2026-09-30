@@ -1,5 +1,5 @@
 // Hand-rolled SVG line chart — Trade Republic light style:
-// a single thin BLACK line on white, no fill, with a dotted baseline.
+// a single thin WHITE line on black, no fill, with a dotted baseline.
 export default function LineChart({ data }) {
   const W = 1000
   const H = 460
@@ -27,7 +27,7 @@ export default function LineChart({ data }) {
       <polyline
         points={linePts}
         fill="none"
-        stroke="#050505"
+        stroke="#ffffff"
         strokeWidth="2.5"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -39,7 +39,7 @@ export default function LineChart({ data }) {
         y1={baseY}
         x2={W - padX}
         y2={baseY}
-        stroke="#c8c8cc"
+        stroke="#48484a"
         strokeWidth="2"
         strokeLinecap="round"
         strokeDasharray="0.5 9"

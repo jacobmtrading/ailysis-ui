@@ -209,11 +209,10 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
 
             <div className="menu-section">
               <div className="menu-heading">Access code</div>
-              <div className="menu-note menu-note-tight">Got an access code? Enter it to look around as a guest — no email needed.</div>
               <div className="menu-coderow">
                 <input
                   className="menu-input code access"
-                  placeholder="e.g. SHOWCASE"
+                  placeholder="SHOWCASE"
                   autoCapitalize="characters"
                   autoCorrect="off"
                   spellCheck={false}
