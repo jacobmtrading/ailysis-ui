@@ -1,7 +1,7 @@
 // Admin panel API (requires role=admin):
 // GET  /api/admin -> { users: [...], codes: [...] }
-// POST /api/admin { action: 'setTier'|'addCode'|'delCode'|'resetState', ... }
-import { sessionUser, saveUsers, isAdmin, TIER_RANK } from './_lib/auth.js'
+// POST /api/admin { action: 'setTier'|'addCode'|'delCode'|'addAccess'|'delAccess'|'resetState', ... }
+import { sessionUser, saveUsers, isAdmin, normalizeAccessCode, guestKey, TIER_RANK } from './_lib/auth.js'
 import { saveState, defaultState } from './_lib/state.js'
 import { authorized, json } from './_lib/http.js'
 
@@ -22,8 +22,9 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const users = Object.entries(db.users).map(([username, u]) => ({
         username,
-        email: u.email || username,
-        emailVerified: !!u.emailVerified,
+        email: u.guest ? `Guest · ${u.accessCode}` : u.email || username,
+        guest: !!u.guest,
+        emailVerified: !!u.emailVerified || !!u.guest,
         tier: u.tier || 'free',
         role: u.role || 'user',
         createdAt: u.createdAt,
@@ -36,7 +37,14 @@ export default async function handler(req, res) {
         createdAt: c.createdAt,
       }))
       codes.sort((a, b) => b.createdAt - a.createdAt)
-      return json(res, 200, { users, codes })
+      const access = Object.entries(db.access).map(([code, c]) => ({
+        code,
+        tier: c.tier || 'free',
+        uses: c.uses || 0,
+        createdAt: c.createdAt,
+      }))
+      access.sort((a, b) => b.createdAt - a.createdAt)
+      return json(res, 200, { users, codes, access })
     }
 
     const { action, username, tier, code } = req.body || {}
@@ -62,6 +70,29 @@ export default async function handler(req, res) {
 
     if (action === 'delCode') {
       delete db.codes[String(code || '').trim()]
+      await saveUsers(db)
+      return json(res, 200, { ok: true })
+    }
+
+    if (action === 'addAccess') {
+      const c = normalizeAccessCode(code)
+      if (!c) return json(res, 400, { error: 'Access codes are 5–24 letters, digits or dashes' })
+      if (db.access[c]) return json(res, 409, { error: 'Access code already exists' })
+      if (!(tier in TIER_RANK)) return json(res, 400, { error: 'bad tier' })
+      db.access[c] = { tier, uses: 0, createdAt: Date.now() }
+      // An old guest account for a re-created code starts on the new tier.
+      if (db.users[guestKey(c)]) db.users[guestKey(c)].tier = tier
+      await saveUsers(db)
+      return json(res, 200, { ok: true })
+    }
+
+    if (action === 'delAccess') {
+      const c = normalizeAccessCode(code)
+      if (c) {
+        delete db.access[c]
+        // Dropping the guest account signs out everyone still using the code.
+        delete db.users[guestKey(c)]
+      }
       await saveUsers(db)
       return json(res, 200, { ok: true })
     }

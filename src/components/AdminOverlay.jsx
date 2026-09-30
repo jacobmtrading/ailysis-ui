@@ -6,6 +6,8 @@ export default function AdminOverlay({ open, onClose }) {
   const [err, setErr] = useState(null)
   const [newCode, setNewCode] = useState('')
   const [newTier, setNewTier] = useState('premium')
+  const [newAccess, setNewAccess] = useState('')
+  const [accessTier, setAccessTier] = useState('tailormade')
   const [busy, setBusy] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
 
@@ -48,7 +50,7 @@ export default function AdminOverlay({ open, onClose }) {
         <div className="pos-header-info">
           <div className="pos-header-title">Admin</div>
           <div className="pos-header-sub">
-            {data ? `${data.users.length} accounts · ${data.codes.length} codes` : 'loading…'}
+            {data ? `${data.users.length} accounts · ${data.codes.length + (data.access?.length || 0)} codes` : 'loading…'}
           </div>
         </div>
       </header>
@@ -63,6 +65,7 @@ export default function AdminOverlay({ open, onClose }) {
               <div className="admin-name">
                 {u.email || u.username}
                 {u.role === 'admin' && <span className="offer-tag">· admin</span>}
+                {u.guest && <span className="offer-tag">· guest</span>}
                 {!u.emailVerified && <span className="offer-tag">· unverified</span>}
               </div>
               <div className="admin-sub">
@@ -115,6 +118,46 @@ export default function AdminOverlay({ open, onClose }) {
               </div>
             </div>
             <button className="menu-logout" disabled={busy} onClick={() => act(() => api.adminDelCode(c.code))}>
+              Delete
+            </button>
+          </div>
+        ))}
+
+        <div className="menu-heading" style={{ marginTop: 18 }}>
+          Access codes
+        </div>
+        <div className="menu-note">Log in straight to a shared guest account — no email. For showcases.</div>
+        <div className="menu-coderow">
+          <input
+            className="menu-input code access"
+            placeholder="5–24 chars"
+            autoCapitalize="characters"
+            maxLength={24}
+            value={newAccess}
+            onChange={(e) => setNewAccess(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
+          />
+          <select className="menu-input tier-select" value={accessTier} onChange={(e) => setAccessTier(e.target.value)}>
+            <option value="free">Free</option>
+            <option value="premium">Premium</option>
+            <option value="tailormade">Tailormade</option>
+          </select>
+          <button
+            className="menu-primary"
+            disabled={busy || newAccess.length < 5}
+            onClick={() => act(() => api.adminAddAccess(newAccess, accessTier)).then(() => setNewAccess(''))}
+          >
+            Add
+          </button>
+        </div>
+        {data?.access?.map((c) => (
+          <div className="admin-row" key={c.code}>
+            <div className="admin-user">
+              <div className="admin-name code-mono">{c.code}</div>
+              <div className="admin-sub">
+                {c.tier} · used {c.uses}×
+              </div>
+            </div>
+            <button className="menu-logout" disabled={busy} onClick={() => act(() => api.adminDelAccess(c.code))}>
               Delete
             </button>
           </div>

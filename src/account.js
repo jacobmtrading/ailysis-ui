@@ -18,6 +18,7 @@ export const register = (email, password) =>
   call('/api/auth', { method: 'POST', body: { action: 'register', email, password } })
 export const login = (email, password) =>
   call('/api/auth', { method: 'POST', body: { action: 'login', email, password } })
+export const accessLogin = (code) => call('/api/auth', { method: 'POST', body: { action: 'access', code } })
 export const logout = () => call('/api/auth', { method: 'POST', body: { action: 'logout' } })
 export const resendVerification = () =>
   call('/api/auth', { method: 'POST', body: { action: 'resend' } })
@@ -69,4 +70,7 @@ export const adminSetTier = (username, tier) =>
 export const adminAddCode = (code, tier) =>
   call('/api/admin', { method: 'POST', body: { action: 'addCode', code, tier } })
 export const adminDelCode = (code) => call('/api/admin', { method: 'POST', body: { action: 'delCode', code } })
+export const adminAddAccess = (code, tier) =>
+  call('/api/admin', { method: 'POST', body: { action: 'addAccess', code, tier } })
+export const adminDelAccess = (code) => call('/api/admin', { method: 'POST', body: { action: 'delAccess', code } })
 export const adminResetState = () => call('/api/admin', { method: 'POST', body: { action: 'resetState' } })

@@ -45,9 +45,11 @@ export function verifyPassword(password, stored) {
   return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(check, 'hex'))
 }
 
-// ---- user store: { users: { username: {...} }, codes: { '1234': {...} } } ----
+// ---- user store: { users: { username: {...} }, codes: { '1234': {...} }, access: { 'SHOWCASE': {...} } } ----
 export async function loadUsers() {
-  return (await getJSON(USERS_KEY)) || { users: {}, codes: {} }
+  const db = (await getJSON(USERS_KEY)) || { users: {}, codes: {} }
+  db.access = db.access || {}
+  return db
 }
 
 export async function saveUsers(db) {
@@ -63,6 +65,16 @@ export function validEmail(e) {
 export function nameFromEmail(email) {
   return String(email || '').split('@')[0] || 'you'
 }
+
+// Access codes log straight into a shared guest account (no email needed) —
+// for showcases. Letters/digits/dashes, 5–24 chars, case-insensitive, so they
+// can't be confused with the 4-digit upgrade codes.
+export function normalizeAccessCode(c) {
+  const code = String(c || '').trim().toUpperCase()
+  return /^[A-Z0-9-]{5,24}$/.test(code) ? code : null
+}
+
+export const guestKey = (code) => `guest:${code.toLowerCase()}`
 
 export function isAdmin(user) {
   return user?.role === 'admin'
@@ -139,6 +151,18 @@ export async function saveUserData(username, data) {
 }
 
 export function publicUser(key, user) {
+  if (user.guest) {
+    return {
+      email: null,
+      name: 'Guest',
+      guest: true,
+      accessCode: user.accessCode,
+      tier: user.tier || 'free',
+      role: 'user',
+      emailVerified: false,
+      createdAt: user.createdAt,
+    }
+  }
   const email = user.email || key
   return {
     email,

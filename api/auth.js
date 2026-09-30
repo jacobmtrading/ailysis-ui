@@ -1,4 +1,4 @@
-// POST /api/auth { action: 'register'|'login'|'logout'|'code', ... }
+// POST /api/auth { action: 'register'|'login'|'access'|'logout'|'code', ... }
 // GET  /api/auth -> current user (Bearer token)
 import {
   loadUsers,
@@ -16,6 +16,8 @@ import {
   sessionUser,
   publicUser,
   adminEmail,
+  normalizeAccessCode,
+  guestKey,
   TIER_RANK,
 } from './_lib/auth.js'
 import { sendVerificationEmail, sendLoginLinkEmail, sendPasswordResetEmail } from './_lib/mail.js'
@@ -71,6 +73,22 @@ export default async function handler(req, res) {
         user.role = 'admin'
         await saveUsers(db)
       }
+      const token = await createSession(key)
+      return json(res, 200, { token, user: publicUser(key, user) })
+    }
+
+    if (action === 'access') {
+      // Guest login with an access code — no email or password. Every holder of
+      // the same code shares one guest account whose tier follows the code.
+      const c = normalizeAccessCode(code)
+      const db = await loadUsers()
+      const entry = c && db.access[c]
+      if (!entry) return json(res, 404, { error: 'Unknown access code' })
+      const key = guestKey(c)
+      const user = (db.users[key] = db.users[key] || { guest: true, accessCode: c, createdAt: Date.now() })
+      user.tier = entry.tier || 'free'
+      entry.uses = (entry.uses || 0) + 1
+      await saveUsers(db)
       const token = await createSession(key)
       return json(res, 200, { token, user: publicUser(key, user) })
     }
@@ -148,6 +166,7 @@ export default async function handler(req, res) {
     if (action === 'code') {
       const sess = await sessionUser(req)
       if (!sess) return json(res, 401, { error: 'Log in first to redeem a code' })
+      if (sess.user.guest) return json(res, 403, { error: 'Create an account to redeem upgrade codes' })
       const c = String(code || '').trim()
       if (!/^\d{4}$/.test(c)) return json(res, 400, { error: 'Codes are 4 digits' })
       const entry = sess.db.codes[c]

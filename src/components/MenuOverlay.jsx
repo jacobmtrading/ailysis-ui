@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as api from '../account'
+import { FEATURES, TIER_LABEL, TIER_RANK, isLocked } from '../data/features'
 
-const TIER_LABEL = { free: 'Free', premium: 'Premium', tailormade: 'Tailormade' }
-const TIER_RANK = { free: 0, premium: 1, tailormade: 2 }
 const OFFER_CONTENT = {
   premium: [
     { name: 'Personalized board analysis', desc: 'Let the board debate any stock or ETF you pick and give you a verdict.' },
@@ -34,19 +33,20 @@ function priceLabel(p) {
   return `${amt}${INTERVAL_SUFFIX[p.interval] || ''}`
 }
 
-export default function MenuOverlay({ open, user, onUser, expandTier, resetToken, onResetDone, onClose, onOpenStudio, onOpenAdmin }) {
+export default function MenuOverlay({ open, user, onUser, expandTier, resetToken, onResetDone, onClose, onOpenFeature, onOpenAdmin }) {
   const [mode, setMode] = useState('login') // login | register
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [code, setCode] = useState('')
+  const [accessCode, setAccessCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
   const [plans, setPlans] = useState(null)
   const [expandedTier, setExpandedTier] = useState(null)
 
   useEffect(() => {
-    if (open && user && user.tier !== 'tailormade' && !plans) {
+    if (open && user && !user.guest && user.tier !== 'tailormade' && !plans) {
       api.plans().then((d) => setPlans(d.plans || [])).catch(() => setPlans([]))
     }
   }, [open, user, plans])
@@ -103,6 +103,15 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
       setNewPassword('')
       onResetDone?.()
       setMsg({ ok: true, text: 'Password updated — you\'re logged in.' })
+    }
+  }
+
+  const submitAccess = async () => {
+    const out = await run(() => api.accessLogin(accessCode.trim()))
+    if (out?.token) {
+      api.setToken(out.token)
+      onUser(out.user)
+      setAccessCode('')
     }
   }
 
@@ -197,6 +206,27 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
               </div>
             )}
             <div className="menu-note">Have a friends & family code? Log in first, then redeem it here.</div>
+
+            <div className="menu-section">
+              <div className="menu-heading">Access code</div>
+              <div className="menu-note menu-note-tight">Got an access code? Enter it to look around as a guest — no email needed.</div>
+              <div className="menu-coderow">
+                <input
+                  className="menu-input code access"
+                  placeholder="e.g. SHOWCASE"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  maxLength={24}
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
+                  onKeyDown={(e) => e.key === 'Enter' && accessCode.length >= 5 && submitAccess()}
+                />
+                <button className="menu-primary" disabled={busy || accessCode.length < 5} onClick={submitAccess}>
+                  Enter
+                </button>
+              </div>
+            </div>
           </>
         )}
 
@@ -205,7 +235,7 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
             <div className="menu-userrow">
               <div className="menu-avatar">{(user.name || user.email).slice(0, 2).toUpperCase()}</div>
               <div className="menu-userinfo">
-                <div className="menu-username">{user.email}</div>
+                <div className="menu-username">{user.guest ? `Guest · ${user.accessCode}` : user.email}</div>
                 <span className={`tier-chip tier-${user.tier}`}>{TIER_LABEL[user.tier] || user.tier}</span>
               </div>
               <button className="menu-logout" onClick={doLogout}>
@@ -213,7 +243,7 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
               </button>
             </div>
 
-            {!user.emailVerified && (
+            {!user.emailVerified && !user.guest && (
               <div className="menu-verify">
                 <div className="menu-verify-text">
                   Confirm your email to unlock subscriptions. Check your inbox for the link.
@@ -225,45 +255,40 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
             )}
 
             <div className="menu-section">
-              <div className="menu-heading">Tools</div>
-              <button className="menu-link" onClick={() => onOpenStudio('analyze')}>
-                Personalized analysis {user.tier === 'free' ? '🔒' : ''}
-              </button>
-              <button className="menu-link" onClick={() => onOpenStudio('build')}>
-                Portfolio builder {user.tier !== 'tailormade' ? '🔒' : ''}
-              </button>
-              <button className="menu-link" onClick={() => onOpenStudio('check')}>
-                Check my portfolio {user.tier !== 'tailormade' ? '🔒' : ''}
-              </button>
-              <button className="menu-link" onClick={() => onOpenStudio('map')}>
-                Risk map {user.tier === 'free' ? '🔒' : ''}
-              </button>
-              <button className="menu-link" onClick={() => onOpenStudio('swot')}>
-                SWOT {user.tier === 'free' ? '🔒' : ''}
-              </button>
-              <button className="menu-link" onClick={() => onOpenStudio('stress')}>
-                Stress test {user.tier === 'free' ? '🔒' : ''}
-              </button>
-            </div>
-
-            <div className="menu-section">
-              <div className="menu-heading">Code?</div>
-              <div className="menu-coderow">
-                <input
-                  className="menu-input code"
-                  placeholder="4-digit code"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                />
-                <button className="menu-primary" disabled={busy || code.length !== 4} onClick={submitCode}>
-                  Redeem
+              <div className="menu-heading">Features</div>
+              {FEATURES.map((f) => (
+                <button key={f.id} className={`menu-link ${f.id === 'portfolio' ? 'featured' : ''}`} onClick={() => onOpenFeature(f.id)}>
+                  {f.name} {isLocked(f, user) ? '🔒' : ''}
                 </button>
-              </div>
+              ))}
             </div>
 
-            {user.tier !== 'tailormade' && (
+            {user.guest && (
+              <div className="menu-note">
+                You're using a shared guest account. Create your own account to redeem upgrade codes or subscribe.
+              </div>
+            )}
+
+            {!user.guest && (
+              <div className="menu-section">
+                <div className="menu-heading">Code?</div>
+                <div className="menu-coderow">
+                  <input
+                    className="menu-input code"
+                    placeholder="4-digit code"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  />
+                  <button className="menu-primary" disabled={busy || code.length !== 4} onClick={submitCode}>
+                    Redeem
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!user.guest && user.tier !== 'tailormade' && (
               <div className="menu-section">
                 {['premium', 'tailormade']
                   .filter((t) => TIER_RANK[t] > TIER_RANK[user.tier])
