@@ -60,7 +60,7 @@ export default function FeatureCarousel({ user, onPick }) {
           const badge = badgeFor(f, user)
           return (
             <div className="feat-slide" key={f.id}>
-              <button className={`feat-card ${f.id === 'portfolio' ? 'dark' : ''}`} onClick={() => onPick(f)}>
+              <button className="feat-card" onClick={() => onPick(f)}>
                 <span className={`feat-badge ${badge.cls}`}>{badge.text}</span>
                 <svg className="feat-icon" viewBox="0 0 48 48" width="64" height="64" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                   {ICONS[f.id]}

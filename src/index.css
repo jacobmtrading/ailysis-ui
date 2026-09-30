@@ -1890,7 +1890,6 @@ body {
   transition: transform 0.15s ease;
 }
 .feat-card:active { transform: scale(0.985); }
-.feat-card.dark { background: var(--black); color: var(--on-black); }
 .feat-icon {
   position: absolute;
   top: 26px;
@@ -1910,9 +1909,7 @@ body {
   background: var(--bg);
   color: var(--text);
 }
-.feat-card.dark .feat-badge { background: rgba(0, 0, 0, 0.08); color: var(--on-black); }
 .feat-badge.open { color: var(--green); }
-.feat-card.dark .feat-badge.open { color: var(--green); }
 .feat-name {
   font-size: 28px;
   font-weight: 800;
@@ -1924,7 +1921,6 @@ body {
   line-height: 1.45;
   color: #a0a0a6;
 }
-.feat-card.dark .feat-blurb { color: #5b6167; }
 .feat-cta {
   margin-top: 8px;
   padding: 13px 20px;
@@ -1934,7 +1930,6 @@ body {
   font-size: 15px;
   font-weight: 700;
 }
-.feat-card.dark .feat-cta { background: var(--green); color: #fff; }
 
 
 /* ---------------- AI portfolio (members-only, opened over the landing) ---------------- */
