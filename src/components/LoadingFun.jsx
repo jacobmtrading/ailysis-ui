@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 // Shown during any wait so the screen keeps moving: an animated ticker of bars
-// plus a rotating finance fun fact.
+// plus one finance fun fact, picked at random for each wait.
 const FACTS = [
   'The name "Wall Street" comes from a real wall — a wooden palisade Dutch settlers built across lower Manhattan in 1653 to keep out the British.',
   'The "bull" and "bear" markets may come from how each animal attacks: a bull thrusts its horns up, a bear swipes its paws down.',
@@ -14,11 +14,7 @@ const FACTS = [
 ]
 
 export default function LoadingFun({ label }) {
-  const [i, setI] = useState(() => Math.floor(Math.random() * FACTS.length))
-  useEffect(() => {
-    const id = setInterval(() => setI((n) => (n + 1) % FACTS.length), 4200)
-    return () => clearInterval(id)
-  }, [])
+  const [i] = useState(() => Math.floor(Math.random() * FACTS.length))
   return (
     <div className="loadfun">
       <div className="loadfun-bars" aria-hidden="true">
@@ -29,7 +25,7 @@ export default function LoadingFun({ label }) {
       {label && <div className="loadfun-label">{label}</div>}
       <div className="loadfun-fact">
         <div className="loadfun-fact-head">Did you know?</div>
-        <div className="loadfun-fact-body" key={i}>{FACTS[i]}</div>
+        <div className="loadfun-fact-body">{FACTS[i]}</div>
       </div>
     </div>
   )

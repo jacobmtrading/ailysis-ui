@@ -1141,7 +1141,8 @@ body {
   cursor: pointer;
   margin-bottom: 8px;
 }
-.menu-primary.dark { background: var(--black); }
+.menu-primary.dark { background: #3a3a3c; color: #fff; }
+.menu-primary.dark:not(:disabled):hover { background: #48484a; }
 .menu-primary:disabled { opacity: 0.5; }
 .menu-note {
   color: var(--muted);
