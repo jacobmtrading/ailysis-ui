@@ -1956,6 +1956,23 @@ html {
 }
 .landing-hero { display: none; }
 
+/* Quick access: a small globe in the login header opens the access-code screen. */
+.menu-globe {
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--faint);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.menu-globe:hover,
+.menu-globe:active { color: var(--muted); border-color: var(--muted); }
+
 /* ======================================================================
    Desktop / wide landscape layout
    Phones keep the swipe-first design above; from 900px wide the landing
@@ -2006,10 +2023,22 @@ html {
     line-height: 1.04;
   }
   .landing-hero p {
-    margin: 16px 0 0;
-    max-width: 560px;
-    font-size: 18px;
+    margin: 18px 0 0;
+    max-width: 720px;
+    font-size: 19px;
     line-height: 1.5;
+    color: #c7c7cc;
+  }
+  .landing-hero em {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    color: var(--green);
+  }
+  .landing-hero .landing-def {
+    margin-top: 14px;
+    padding-left: 14px;
+    border-left: 2px solid var(--line);
+    font-size: 14.5px;
     color: var(--muted);
   }
 
@@ -2017,7 +2046,7 @@ html {
   .feat-track {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 20px;
+    gap: 36px 22px;
     overflow: visible;
     scroll-snap-type: none;
   }
@@ -2038,8 +2067,7 @@ html {
   .feat-name { font-size: 22px; letter-spacing: -0.5px; }
   .feat-blurb { font-size: 14.5px; }
   .feat-cta { padding: 10px 16px; font-size: 14px; }
-  /* The AI portfolio (first in the list, last on the landing) gets a wide card. */
-  .feat-slide:last-child { grid-column: span 2; }
+  .feat-slide.clone { display: none; }
 
   /* ---- Overlays: centred panels over a dimmed page ---- */
   .menu-overlay,

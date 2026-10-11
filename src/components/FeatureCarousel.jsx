@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { FEATURES, TIER_LABEL, isLocked } from '../data/features'
 
 // Line icons, one per feature, drawn on a 48×48 grid.
@@ -51,16 +52,54 @@ function badgeFor(feature, user) {
 // The landing runs the list back to front: stress test first, AI portfolio last.
 const ORDER = [...FEATURES].reverse()
 
+// Phones swipe through the list endlessly in both directions: three copies are
+// rendered and, once a swipe settles on an outer copy, the track jumps (without
+// animation) to the same card in the middle copy. Desktop shows a grid of the
+// middle copy only (clones hidden in CSS).
+const LOOP = [...ORDER, ...ORDER, ...ORDER]
+const N = ORDER.length
+
 // Landing page body: one feature at a time, swipe left/right, tap to open.
 export default function FeatureCarousel({ user, onPick }) {
+  const track = useRef(null)
+
+  useEffect(() => {
+    const el = track.current
+    const width = () => el.clientWidth
+    el.scrollLeft = N * width()
+
+    let timer
+    const recenter = () => {
+      const w = width()
+      if (!w) return
+      const i = Math.round(el.scrollLeft / w)
+      if (i < N || i >= 2 * N) el.scrollLeft = (((i % N) + N) % N + N) * w
+    }
+    const onScroll = () => {
+      clearTimeout(timer)
+      timer = setTimeout(recenter, 120)
+    }
+    const onResize = () => {
+      el.scrollLeft = N * width()
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onResize)
+    return () => {
+      clearTimeout(timer)
+      el.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [])
+
   return (
     <div className="feat">
-      <div className="feat-track">
-        {ORDER.map((f) => {
+      <div className="feat-track" ref={track}>
+        {LOOP.map((f, i) => {
           const badge = badgeFor(f, user)
+          const clone = i < N || i >= 2 * N
           return (
-            <div className="feat-slide" key={f.id}>
-              <button className="feat-card" onClick={() => onPick(f)}>
+            <div className={`feat-slide${clone ? ' clone' : ''}`} key={`${f.id}-${i}`} aria-hidden={clone || undefined}>
+              <button className="feat-card" onClick={() => onPick(f)} tabIndex={clone ? -1 : undefined}>
                 <span className={`feat-badge ${badge.cls}`}>{badge.text}</span>
                 <svg className="feat-icon" viewBox="0 0 48 48" width="64" height="64" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                   {ICONS[f.id]}

@@ -120,7 +120,14 @@ export default function App() {
         {/* Desktop only (hidden on phones via CSS): headline above the card grid. */}
         <div className="landing-hero">
           <h1>Think less, profit more.</h1>
-          <p>An AI agent board that debates every trade — pick a tool to get started.</p>
+          <p>
+            Ailysis has evolved from a single-agent portfolio manager to a <em>swarm intelligence</em> approach.
+          </p>
+          <p className="landing-def">
+            Swarm intelligence (SI) in artificial intelligence is a decentralized approach where simple agents follow
+            basic local rules and interact without a central leader, giving rise to complex, intelligent group
+            behavior.
+          </p>
         </div>
 
         <FeatureCarousel user={user} onPick={pickFeature} />

@@ -40,6 +40,8 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
   const [newPassword, setNewPassword] = useState('')
   const [code, setCode] = useState('')
   const [accessCode, setAccessCode] = useState('')
+  // Quick access (shared access code) is tucked behind the globe on the login screen.
+  const [quickAccess, setQuickAccess] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
   const [plans, setPlans] = useState(null)
@@ -51,7 +53,13 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
     }
   }, [open, user, plans])
 
+  useEffect(() => {
+    if (!open) setQuickAccess(false)
+  }, [open])
+
   if (!open) return null
+
+  const showLogin = !user && !resetToken
 
   const run = async (fn, okMsg) => {
     setBusy(true)
@@ -136,12 +144,22 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
   return (
     <div className="menu-overlay">
       <header className="pos-header">
-        <button className="pos-back" onClick={onClose} aria-label="Close">
+        <button className="pos-back" onClick={quickAccess && showLogin ? () => setQuickAccess(false) : onClose} aria-label="Close">
           <svg viewBox="0 0 24 24" width="26" height="26">
             <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <div className="pos-header-title">{resetToken ? 'Reset password' : user ? 'Account' : 'Log in'}</div>
+        <div className="pos-header-title">
+          {resetToken ? 'Reset password' : user ? 'Account' : quickAccess ? 'Quick access' : 'Log in'}
+        </div>
+        {showLogin && !quickAccess && (
+          <button className="menu-globe" onClick={() => setQuickAccess(true)} aria-label="Quick access">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" />
+            </svg>
+          </button>
+        )}
       </header>
 
       <div className="menu-body">
@@ -161,7 +179,27 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
           </>
         )}
 
-        {!user && !resetToken && (
+        {showLogin && quickAccess && (
+          <div className="menu-coderow">
+            <input
+              className="menu-input code access"
+              placeholder="Code"
+              autoFocus
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={24}
+              value={accessCode}
+              onChange={(e) => setAccessCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
+              onKeyDown={(e) => e.key === 'Enter' && accessCode.length >= 5 && submitAccess()}
+            />
+            <button className="menu-primary" disabled={busy || accessCode.length < 5} onClick={submitAccess}>
+              Enter
+            </button>
+          </div>
+        )}
+
+        {showLogin && !quickAccess && (
           <>
             <div className="menu-tabs">
               <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>
@@ -207,25 +245,6 @@ export default function MenuOverlay({ open, user, onUser, expandTier, resetToken
             )}
             <div className="menu-note">Have a friends & family code? Log in first, then redeem it here.</div>
 
-            <div className="menu-section">
-              <div className="menu-heading">Access code</div>
-              <div className="menu-coderow">
-                <input
-                  className="menu-input code access"
-                  placeholder="SHOWCASE"
-                  autoCapitalize="characters"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  maxLength={24}
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
-                  onKeyDown={(e) => e.key === 'Enter' && accessCode.length >= 5 && submitAccess()}
-                />
-                <button className="menu-primary" disabled={busy || accessCode.length < 5} onClick={submitAccess}>
-                  Enter
-                </button>
-              </div>
-            </div>
           </>
         )}
 
