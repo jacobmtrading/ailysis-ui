@@ -43,6 +43,8 @@ export default function StudioOverlay({ open, user, initialTab, onOpenChat, onOp
   // insight tools: run on a single searched stock or on the entered positions
   const [toolMode, setToolMode] = useState('stock')
   const [pickedStock, setPickedStock] = useState(null)
+  // Which position row's ticker box is focused — it gets the same suggestion list as the stock search.
+  const [activeRow, setActiveRow] = useState(null)
 
   // Opened from the menu's feature list: land on the feature that was tapped.
   useEffect(() => {
@@ -101,10 +103,14 @@ export default function StudioOverlay({ open, user, initialTab, onOpenChat, onOp
   // Whichever subject the insight tools should act on. On a tool tab it comes
   // from that tab's own inputs (a picked stock / the entered positions); from
   // Analyze or Check it follows what is being worked on there.
-  const filledRows = rows.filter((r) => r.ticker && r.weightPct)
+  const filledRows = rows.filter((r) => r.ticker && r.weightPct).map((r) => ({ ticker: r.ticker, weightPct: r.weightPct }))
   const portfolioSubject =
     filledRows.length >= 1
-      ? { items: filledRows.map((r) => ({ ticker: r.ticker, weightPct: +r.weightPct })), label: 'My portfolio', need: 'tailormade' }
+      ? {
+          items: filledRows.map((r) => ({ ticker: r.ticker, weightPct: +r.weightPct })),
+          label: `My portfolio (${filledRows.map((r) => `${r.ticker} ${r.weightPct}%`).join(', ')})`,
+          need: 'tailormade',
+        }
       : null
   const subject = useMemo(() => {
     if (IS_TOOL(tab)) {
@@ -178,25 +184,68 @@ export default function StudioOverlay({ open, user, initialTab, onOpenChat, onOp
 
   // Same position entry the portfolio analysis uses — shared with the insight
   // tools so a stress test can be fed a portfolio without running a check first.
+  // Each ticker box suggests matches while typing; picking one fills the ticker
+  // and shows the company name underneath, so it's clear the entry was understood.
+  const setRow = (i, patch) => setRows(rows.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+  const rowSuggestions = (r) => {
+    if (!uni || !r.ticker.trim() || r.picked) return []
+    return uni.searchUniverse(r.ticker, 5)
+  }
   const positionsEditor = (
     <>
-      {rows.map((r, i) => (
-        <div className="menu-coderow" key={i}>
-          <input
-            className="menu-input"
-            placeholder="Ticker (e.g. AAPL)"
-            value={r.ticker}
-            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, ticker: e.target.value.toUpperCase() } : x)))}
-          />
-          <input
-            className="menu-input weight"
-            placeholder="%"
-            inputMode="numeric"
-            value={r.weightPct}
-            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, weightPct: e.target.value.replace(/\D/g, '') } : x)))}
-          />
-        </div>
-      ))}
+      {rows.map((r, i) => {
+        const known = uni && r.ticker && uni.byTicker[r.ticker]
+        const suggestions = activeRow === i ? rowSuggestions(r) : []
+        return (
+          <div className="pos-entry" key={i}>
+            <div className="menu-coderow">
+              <input
+                className="menu-input"
+                placeholder="Ticker or name (e.g. AAPL, Siemens)"
+                autoCorrect="off"
+                spellCheck={false}
+                value={r.ticker}
+                onFocus={() => setActiveRow(i)}
+                onBlur={() => setActiveRow(null)}
+                onChange={(e) => setRow(i, { ticker: e.target.value.toUpperCase(), picked: false })}
+              />
+              <input
+                className="menu-input weight"
+                placeholder="%"
+                inputMode="numeric"
+                value={r.weightPct}
+                onChange={(e) => setRow(i, { weightPct: e.target.value.replace(/\D/g, '') })}
+              />
+            </div>
+            {suggestions.length > 0 && (
+              <div className="pos-suggest">
+                {suggestions.map((m) => (
+                  <button
+                    key={m.t}
+                    className="menu-link"
+                    // Keep focus in the input so the list doesn't vanish before the tap lands.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setRow(i, { ticker: m.t, picked: true })
+                      setActiveRow(null)
+                    }}
+                  >
+                    {optionLabel(m)}
+                  </button>
+                ))}
+              </div>
+            )}
+            {activeRow === i && r.ticker.trim() && !r.picked && !uni && <div className="pos-entry-note">Loading the stock list…</div>}
+            {activeRow === i && uni && r.ticker.trim() && !r.picked && !suggestions.length && (
+              <div className="pos-entry-note">No match — the ticker will be looked up live.</div>
+            )}
+            {activeRow !== i && known && <div className="pos-entry-note ok">✓ {known.n}</div>}
+            {activeRow !== i && uni && r.ticker.trim() && !known && (
+              <div className="pos-entry-note">Not in our list — {r.ticker} will be looked up live.</div>
+            )}
+          </div>
+        )
+      })}
       <button className="menu-link" onClick={() => setRows([...rows, { ticker: '', weightPct: '' }])}>
         + Add position
       </button>

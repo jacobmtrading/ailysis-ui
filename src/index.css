@@ -1676,6 +1676,18 @@ body {
 .dr-cell:hover:not(:disabled) { border-color: var(--black); color: var(--text); }
 .dr-cell.active { background: var(--black); color: var(--on-black); border-color: var(--black); }
 .dr-cell:disabled { opacity: 0.5; cursor: default; }
+.pos-entry { margin-bottom: 2px; }
+.pos-entry .menu-coderow { margin-bottom: 0; }
+.pos-suggest {
+  margin: -2px 0 8px;
+  padding: 2px 12px;
+  border-radius: 10px;
+  background: var(--chip);
+}
+.pos-suggest .menu-link { font-size: 14px; padding: 10px 2px; }
+.pos-suggest .menu-link:last-child { border-bottom: none; }
+.pos-entry-note { margin: -2px 2px 8px; font-size: 12px; color: var(--muted); }
+.pos-entry-note.ok { color: var(--green); }
 .dr-subjecthint { margin: 12px 0 8px; font-size: 12px; color: var(--muted); line-height: 1.45; }
 
 /* ---- My sessions rows with a note of what was done ---- */
