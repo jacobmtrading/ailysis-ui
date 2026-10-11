@@ -117,6 +117,12 @@ export default function App() {
           <div className="top-spacer" />
         </div>
 
+        {/* Desktop only (hidden on phones via CSS): headline above the card grid. */}
+        <div className="landing-hero">
+          <h1>Think less, profit more.</h1>
+          <p>An AI agent board that debates every trade — pick a tool to get started.</p>
+        </div>
+
         <FeatureCarousel user={user} onPick={pickFeature} />
       </section>
 

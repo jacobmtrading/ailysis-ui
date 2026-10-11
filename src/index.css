@@ -1946,3 +1946,132 @@ body {
 .menu-link.featured { font-weight: 800; }
 .menu-note-tight { margin: 0 0 10px; }
 .menu-input.code.access { letter-spacing: 1.5px; font-weight: 700; }
+
+/* ---------------- Whole-screen background ----------------
+   The page colour belongs to <html> too, so overscroll, the area outside the
+   app column and the browser chrome never show white. */
+html {
+  background: var(--bg);
+  color-scheme: dark;
+}
+.landing-hero { display: none; }
+
+/* ======================================================================
+   Desktop / wide landscape layout
+   Phones keep the swipe-first design above; from 900px wide the landing
+   becomes a hero + card grid and overlays open as centred panels.
+   ====================================================================== */
+@media (min-width: 900px) {
+  .app {
+    max-width: none;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(6, 193, 103, 0.10), transparent 60%),
+      var(--bg);
+  }
+
+  /* Splash + tutorial cover the full screen, not a phone column. */
+  .intro,
+  .tut-overlay { max-width: none; }
+  .tut-slide img { max-width: min(100%, 520px); }
+
+  /* ---- Landing ---- */
+  .landing {
+    overflow-y: auto;
+    padding: 28px 0 48px;
+  }
+  .landing .top-bar,
+  .landing-hero,
+  .feat {
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding-left: 48px;
+    padding-right: 48px;
+  }
+  .landing-brand { font-size: 26px; }
+  .help-btn { cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }
+  .help-btn:hover { border-color: var(--muted); color: var(--text); }
+
+  .landing-hero {
+    display: block;
+    padding-top: 64px;
+    padding-bottom: 36px;
+  }
+  .landing-hero h1 {
+    margin: 0;
+    font-family: 'Space Grotesk', -apple-system, sans-serif;
+    font-size: clamp(44px, 5vw, 68px);
+    font-weight: 600;
+    letter-spacing: -1.5px;
+    line-height: 1.04;
+  }
+  .landing-hero p {
+    margin: 16px 0 0;
+    max-width: 560px;
+    font-size: 18px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  .feat { flex: 0 0 auto; padding-top: 0; }
+  .feat-track {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+  .feat-slide { padding: 0; }
+  .feat-card {
+    min-height: 300px;
+    padding: 24px;
+    border: 1px solid var(--line);
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+  .feat-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(6, 193, 103, 0.55);
+    background: #222225;
+  }
+  .feat-card:active { transform: translateY(-1px); }
+  .feat-icon { top: 24px; left: 24px; width: 56px; }
+  .feat-name { font-size: 22px; letter-spacing: -0.5px; }
+  .feat-blurb { font-size: 14.5px; }
+  .feat-cta { padding: 10px 16px; font-size: 14px; }
+  /* The AI portfolio (first in the list, last on the landing) gets a wide card. */
+  .feat-slide:last-child { grid-column: span 2; }
+
+  /* ---- Overlays: centred panels over a dimmed page ---- */
+  .menu-overlay,
+  .studio-overlay,
+  .admin-overlay,
+  .pos-overlay,
+  .all-overlay,
+  .wa-overlay,
+  .portfolio-view {
+    top: 32px;
+    bottom: 32px;
+    width: calc(100% - 64px);
+    max-width: 640px;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.72), 0 30px 80px rgba(0, 0, 0, 0.6);
+    animation: panelIn 0.22s ease;
+  }
+  .studio-overlay,
+  .portfolio-view { max-width: 820px; }
+  .wa-overlay { max-width: 720px; }
+  .portfolio-view { overflow-y: auto; }
+  .insights-overlay { animation: fadeIn 0.2s ease; }
+
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateY(14px) scale(0.985); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@media (min-width: 900px) and (max-height: 700px) {
+  .landing-hero { padding-top: 32px; padding-bottom: 24px; }
+  .feat-card { min-height: 240px; }
+}
