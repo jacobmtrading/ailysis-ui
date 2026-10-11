@@ -111,6 +111,13 @@ export default function FeatureCarousel({ user, onPick }) {
             </div>
           )
         })}
+        {/* Desktop grid only: an 8th square teasing what's next. */}
+        <div className="feat-slide feat-soon" aria-hidden="true">
+          <div className="feat-card">
+            <span className="feat-name">Coming soon</span>
+            <span className="feat-blurb">The swarm is learning new tricks.</span>
+          </div>
+        </div>
       </div>
     </div>
   )

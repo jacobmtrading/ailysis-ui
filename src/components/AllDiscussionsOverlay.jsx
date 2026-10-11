@@ -1,9 +1,23 @@
+import { useEffect, useState } from 'react'
 import OrderRow from './OrderRow'
 
+const FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'buy', label: 'Buys' },
+  { id: 'sell', label: 'Sells' },
+]
+
 // Full, scrollable history of every board discussion (buys, sells, passes,
-// daily reviews). Tapping one opens its chat.
+// daily reviews). Tapping one opens its chat; the tabs narrow it to buy or sell orders.
 export default function AllDiscussionsOverlay({ open, orders = [], onOpen, onClose }) {
+  const [filter, setFilter] = useState('all')
+
+  useEffect(() => {
+    if (!open) setFilter('all')
+  }, [open])
+
   if (!open) return null
+  const shown = filter === 'all' ? orders : orders.filter((o) => o.side === filter)
   return (
     <div className="all-overlay">
       <header className="pos-header">
@@ -14,13 +28,26 @@ export default function AllDiscussionsOverlay({ open, orders = [], onOpen, onClo
         </button>
         <div className="pos-header-info">
           <div className="pos-header-title">All discussions</div>
-          <div className="pos-header-sub">{orders.length} board decisions</div>
+          <div className="pos-header-sub">
+            {shown.length} {filter === 'all' ? 'board decision' : `${filter} order`}
+            {shown.length === 1 ? '' : 's'}
+          </div>
         </div>
       </header>
 
+      <div className="menu-tabs all-filters">
+        {FILTERS.map((f) => (
+          <button key={f.id} className={filter === f.id ? 'active' : ''} onClick={() => setFilter(f.id)}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       <div className="all-list">
-        {orders.length === 0 && <div className="empty-note">No discussions yet.</div>}
-        {orders.map((o) => (
+        {shown.length === 0 && (
+          <div className="empty-note">{filter === 'all' ? 'No discussions yet.' : `No ${filter} orders yet.`}</div>
+        )}
+        {shown.map((o) => (
           <OrderRow key={o.id} order={o} onOpen={onOpen} />
         ))}
       </div>

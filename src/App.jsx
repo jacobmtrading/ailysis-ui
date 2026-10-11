@@ -124,9 +124,8 @@ export default function App() {
             Ailysis has evolved from a single-agent portfolio manager to a <em>swarm intelligence</em> approach.
           </p>
           <p className="landing-def">
-            Swarm intelligence (SI) in artificial intelligence is a decentralized approach where simple agents follow
-            basic local rules and interact without a central leader, giving rise to complex, intelligent group
-            behavior.
+            Swarm intelligence is defined by many agents with different characteristics interacting, enabling more
+            accurate and advanced decision making.
           </p>
         </div>
 
