@@ -123,6 +123,8 @@ STEP 2 — PORTFOLIO ECONOMICS: for EVERY position provided, estimate the econom
 
 Then list overall "risks" (3-5 bullets) AND "opportunities" (2-4 bullets — every shock creates winners: hedges, substitutes, beneficiaries, entry points). Finish with "summary": 2 sentences on whether this portfolio is resilient to this scenario. This is a hypothetical simulation, not investment advice.
 
+SINGLE-STOCK MODE: when "kind" is "single", the client is analyzing ONE stock/ETF on its own — it is NOT a portfolio. Never mention portfolio concentration, position weights, diversification or "100%" exposure; frame risks, opportunities and the summary around how resilient THIS company/fund is to the scenario. When "kind" is "portfolio", analyze it as a portfolio as described above.
+
 Respond with ONLY this JSON:
 {
   "swarm": [{"group": "Nations & governments", "reaction": "..."}],
@@ -135,9 +137,13 @@ Respond with ONLY this JSON:
 const SWARM_GROUPS = ['Nations & governments', 'Major companies', 'Consumers', 'Society & markets']
 
 export async function runStress({ scenario, items }) {
+  // A lone item is a single-stock analysis: drop its (always 100%) weight so
+  // the model doesn't read it as a fully concentrated portfolio.
+  const single = items.length === 1
   const user = JSON.stringify({
     scenario: { title: scenario.title, description: scenario.desc },
-    positions: items,
+    kind: single ? 'single' : 'portfolio',
+    positions: single ? items.map(({ weightPct, ...rest }) => rest) : items,
   })
   const raw = await callDeepSeek(STRESS_PROMPT, user, 2000)
   const byGroup = {}

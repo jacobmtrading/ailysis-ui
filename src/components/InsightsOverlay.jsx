@@ -282,7 +282,7 @@ function StressView({ items, busy, err, data, scenarioId, onPick, onRun }) {
             </div>
           ))}
 
-          <div className="menu-heading">Step 2 · Impact on your positions</div>
+          <div className="menu-heading">Step 2 · Impact on {items.length > 1 ? 'your positions' : items[0].ticker}</div>
           <ImpactChart impacts={data.impacts} />
           <div className="impact-notes">
             {data.impacts.map((im) => (
