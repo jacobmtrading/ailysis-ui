@@ -2129,3 +2129,105 @@ html {
   .landing-hero { padding-top: 32px; padding-bottom: 24px; }
   .feat-card { min-height: 240px; }
 }
+
+/* ---------------- Compare with index ---------------- */
+.compare {
+  position: relative;
+  margin-left: auto;
+  align-self: center;
+}
+.compare-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--chip);
+  border: none;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.compare-btn.active { color: var(--text); }
+.compare-count {
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  padding: 0 4px;
+}
+.compare-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  min-width: 210px;
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 6px 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+.compare-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0 10px 6px;
+}
+.compare-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.compare-row:hover { background: var(--line); }
+.compare-row input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.compare-box {
+  flex: 0 0 18px;
+  height: 18px;
+  border: 2px solid;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+}
+.compare-row input:focus-visible + .compare-box { outline: 2px solid var(--text); outline-offset: 2px; }
+.compare-name {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.compare-chg {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.compare-chg.up { color: var(--green); }
+.compare-chg.down { color: var(--red); }
+.chart-legend {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  pointer-events: none;
+}
+.chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.chart-legend i { width: 10px; height: 3px; border-radius: 2px; }

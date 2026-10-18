@@ -7,11 +7,54 @@ import TutorialOverlay from './TutorialOverlay'
 import WhatsNew from './WhatsNew'
 import AllDiscussionsOverlay from './AllDiscussionsOverlay'
 import MarketPill from './MarketPill'
-import { fetchLive } from '../api'
-import { PERIODS, PERIOD_LABEL } from '../data/portfolio'
+import CompareMenu from './CompareMenu'
+import { fetchLive, fetchBenchmarks } from '../api'
+import { PERIODS, PERIOD_LABEL, BENCHMARKS } from '../data/portfolio'
 
 const fmtPct = (n) => `${Math.abs(n).toFixed(2)}%`
 const PERIOD_FOR = { Day: '1D', Week: '1W', Month: '1M' }
+const COMPARE_KEY = 'ailysis.compare'
+
+// Time grid for the empty state, which has values but no timestamps.
+const FALLBACK_SPAN = { '1D': 26 * 3600e3, '1W': 7 * 86400e3, '1M': 30 * 86400e3, '1Y': 365 * 86400e3, Max: 365 * 86400e3 }
+
+function loadCompare() {
+  try {
+    const keys = JSON.parse(localStorage.getItem(COMPARE_KEY) || '[]')
+    return BENCHMARKS.map((b) => b.key).filter((k) => keys.includes(k))
+  } catch {
+    return []
+  }
+}
+
+// Last index close at or before t (first close if t predates the history).
+function closeAt(history, t) {
+  let lo = 0
+  let hi = history.length - 1
+  if (t <= history[0][0]) return history[0][1]
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (history[mid][0] <= t) lo = mid
+    else hi = mid - 1
+  }
+  return history[lo][1]
+}
+
+// A sparse portfolio series (new fund, quiet week) is stretched onto an even
+// time grid so the index lines still show their shape.
+function compareGrid(values, times) {
+  if (times.length >= 40) return { values, times }
+  const t0 = times[0]
+  const t1 = times[times.length - 1]
+  const n = 60
+  const grid = Array.from({ length: n }, (_, i) => t0 + ((t1 - t0) * i) / (n - 1))
+  let j = 0
+  const held = grid.map((t) => {
+    while (j < times.length - 1 && times[j + 1] <= t) j++
+    return values[j]
+  })
+  return { values: held, times: grid }
+}
 
 // Clean empty state — shown while loading and until the board makes its
 // first trade. No fake data.
@@ -35,6 +78,9 @@ export default function PortfolioView({ open, onClose, onOpenChat }) {
   const [live, setLive] = useState(null)
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [allOpen, setAllOpen] = useState(false)
+  const [compare, setCompare] = useState(loadCompare)
+  const [benchmarks, setBenchmarks] = useState(null)
+  const [benchLoading, setBenchLoading] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -48,11 +94,62 @@ export default function PortfolioView({ open, onClose, onOpenChat }) {
     }
   }, [open])
 
+  const loadBenchmarks = () => {
+    if (benchmarks || benchLoading) return
+    setBenchLoading(true)
+    fetchBenchmarks().then((d) => {
+      setBenchmarks(d)
+      setBenchLoading(false)
+    })
+  }
+
+  // Saved picks from an earlier visit: fetch the index data straight away.
+  useEffect(() => {
+    if (open && compare.length) loadBenchmarks()
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleCompare = (key) => {
+    loadBenchmarks()
+    const next = compare.includes(key) ? compare.filter((k) => k !== key) : [...compare, key]
+    setCompare(BENCHMARKS.map((b) => b.key).filter((k) => next.includes(k)))
+    try {
+      localStorage.setItem(COMPARE_KEY, JSON.stringify(next))
+    } catch {
+      /* selection just won't be remembered */
+    }
+  }
+
   const data = live || EMPTY
   const change = data.periodChange[period] ?? 0
   const changeUp = change >= 0
   const chartData = data.seriesByPeriod[period] || [100, 100]
   const topPositions = useMemo(() => data.positions.slice(0, 3), [data])
+
+  // Each index rebased to the portfolio's starting value over the same window,
+  // so the lines start together and the gap is the out/under-performance.
+  const { plotData, compareLines, compareChanges } = useMemo(() => {
+    const none = { plotData: chartData, compareLines: [], compareChanges: null }
+    if (!benchmarks) return none
+    let times = data.timesByPeriod?.[period]
+    if (!times || times.length !== chartData.length) {
+      const now = Date.now()
+      times = [now - FALLBACK_SPAN[period], now]
+    }
+    const grid = compareGrid(chartData, times)
+    const changes = {}
+    const lines = []
+    for (const b of BENCHMARKS) {
+      const history = benchmarks[b.key]
+      if (!history?.length) continue
+      const base = closeAt(history, grid.times[0])
+      const closes = grid.times.map((t) => closeAt(history, t))
+      changes[b.key] = ((closes[closes.length - 1] - base) / base) * 100
+      if (compare.includes(b.key)) {
+        lines.push({ key: b.key, color: b.color, data: closes.map((c) => (c / base) * grid.values[0]) })
+      }
+    }
+    return { plotData: lines.length ? grid.values : chartData, compareLines: lines, compareChanges: changes }
+  }, [benchmarks, compare, chartData, data, period])
 
   if (!open) return null
 
@@ -96,10 +193,25 @@ export default function PortfolioView({ open, onClose, onOpenChat }) {
                 {p}
               </button>
             ))}
+            <CompareMenu selected={compare} onToggle={toggleCompare} changes={compareChanges} onOpen={loadBenchmarks} />
           </div>
 
           <div className="chart-area">
-            <LineChart data={chartData} />
+            <LineChart data={plotData} compare={compareLines} />
+            {compareLines.length > 0 && (
+              <div className="chart-legend">
+                <span>
+                  <i style={{ background: '#fff' }} />
+                  Portfolio
+                </span>
+                {compareLines.map((l) => (
+                  <span key={l.key}>
+                    <i style={{ background: l.color }} />
+                    {BENCHMARKS.find((b) => b.key === l.key).label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="perf-row">

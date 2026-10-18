@@ -22,15 +22,25 @@ function periodSlices(series) {
     Max: Infinity,
   }
   const seriesByPeriod = {}
+  const timesByPeriod = {}
   const periodChange = {}
   for (const [key, span] of Object.entries(windows)) {
-    let pts = series.filter((p) => now - p.t <= span).map((p) => p.v)
-    if (!pts.length) pts = series.length ? [series[series.length - 1].v] : [100000]
-    if (pts.length === 1) pts = [pts[0], pts[0]]
+    const inWindow = series.filter((p) => now - p.t <= span)
+    let pts = inWindow.map((p) => p.v)
+    let times = inWindow.map((p) => p.t)
+    if (!pts.length) {
+      pts = series.length ? [series[series.length - 1].v] : [100000]
+      times = [now]
+    }
+    if (pts.length === 1) {
+      pts = [pts[0], pts[0]]
+      times = [Math.max(times[0] - Math.min(span, 30 * 86400e3), now - span), now]
+    }
     seriesByPeriod[key] = pts
+    timesByPeriod[key] = times
     periodChange[key] = +(((pts[pts.length - 1] - pts[0]) / pts[0]) * 100).toFixed(2)
   }
-  return { seriesByPeriod, periodChange }
+  return { seriesByPeriod, timesByPeriod, periodChange }
 }
 
 function buildPies(state) {
@@ -56,7 +66,7 @@ export async function fetchLive() {
     const state = await res.json()
     if (!state.live) return null
 
-    const { seriesByPeriod, periodChange } = periodSlices(state.series || [])
+    const { seriesByPeriod, timesByPeriod, periodChange } = periodSlices(state.series || [])
     const { industryPie, assetPie } = buildPies(state)
 
     const orders = (state.orders || []).map((o) => {
@@ -91,6 +101,7 @@ export async function fetchLive() {
       live: true,
       value: state.value,
       seriesByPeriod,
+      timesByPeriod,
       periodChange,
       orders,
       positions,
@@ -98,6 +109,18 @@ export async function fetchLive() {
       assetPie,
       hasHistory: (state.series || []).length >= 2,
     }
+  } catch {
+    return null
+  }
+}
+
+// Index history for the chart's "Compare" picker: { sp500, dax, msci } as
+// [[t, close], ...] oldest first. Null when unavailable.
+export async function fetchBenchmarks() {
+  try {
+    const res = await fetch('/api/benchmarks')
+    if (!res.ok) return null
+    return await res.json()
   } catch {
     return null
   }

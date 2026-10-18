@@ -7,7 +7,7 @@ import './index.css'
 const root = ReactDOM.createRoot(document.getElementById('root'))
 
 // Dev-only harnesses: ?demo=insights for the insights overlay, ?demo=studio for
-// the discussion room. The DEV guard keeps them (and their fetch stubs) out of
+// the discussion room, ?demo=portfolio for the fund chart. The DEV guard keeps them (and their fetch stubs) out of
 // production bundles entirely.
 const demo = import.meta.env.DEV && new URLSearchParams(window.location.search).get('demo')
 if (demo === 'insights') {
@@ -17,6 +17,10 @@ if (demo === 'insights') {
 } else if (demo === 'studio') {
   import('./dev/StudioDemo.jsx').then(({ default: StudioDemo }) => {
     root.render(<StudioDemo />)
+  })
+} else if (demo === 'portfolio') {
+  import('./dev/PortfolioDemo.jsx').then(({ default: PortfolioDemo }) => {
+    root.render(<PortfolioDemo />)
   })
 } else {
   root.render(
