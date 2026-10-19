@@ -39,6 +39,12 @@ const ICONS = {
     </>
   ),
   stress: <path d="M4 26h8l5-14 8 26 6-18 4 6h9" />,
+  lab: (
+    <>
+      <path d="M19 6h10M21 6v13L9 38a3 3 0 002.6 4.5h24.8A3 3 0 0039 38L27 19V6" />
+      <path d="M14 30h20" />
+    </>
+  ),
 }
 
 // Which plan a feature needs — green once the logged-in user has it.
@@ -49,8 +55,9 @@ function badgeFor(feature, user) {
   return { text: `${text} ✓`, cls: 'open' }
 }
 
-// The landing runs the list back to front: stress test first, AI portfolio last.
-const ORDER = [...FEATURES].reverse()
+// The landing leads with the Lab (the hub every tool opens into), then runs the
+// rest back to front: stress test first, AI portfolio last.
+const ORDER = [FEATURES.find((f) => f.id === 'lab'), ...FEATURES.filter((f) => f.id !== 'lab').reverse()]
 
 // Phones swipe through the list endlessly in both directions: three copies are
 // rendered and, once a swipe settles on an outer copy, the track jumps (without
@@ -99,7 +106,7 @@ export default function FeatureCarousel({ user, onPick }) {
           const clone = i < N || i >= 2 * N
           return (
             <div className={`feat-slide${clone ? ' clone' : ''}`} key={`${f.id}-${i}`} aria-hidden={clone || undefined}>
-              <button className="feat-card" onClick={() => onPick(f)} tabIndex={clone ? -1 : undefined}>
+              <button className={`feat-card${f.id === 'lab' ? ' feat-lab' : ''}`} onClick={() => onPick(f)} tabIndex={clone ? -1 : undefined}>
                 <span className={`feat-badge ${badge.cls}`}>{badge.text}</span>
                 <svg className="feat-icon" viewBox="0 0 48 48" width="64" height="64" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                   {ICONS[f.id]}
@@ -111,13 +118,6 @@ export default function FeatureCarousel({ user, onPick }) {
             </div>
           )
         })}
-        {/* Desktop grid only: an 8th square teasing what's next. */}
-        <div className="feat-slide feat-soon" aria-hidden="true">
-          <div className="feat-card">
-            <span className="feat-name">Coming soon</span>
-            <span className="feat-blurb">The swarm is learning new tricks.</span>
-          </div>
-        </div>
       </div>
     </div>
   )

@@ -2,20 +2,23 @@ import { useEffect, useState } from 'react'
 import Intro from './components/Intro'
 import ChatOverlay from './components/ChatOverlay'
 import MenuOverlay from './components/MenuOverlay'
-import StudioOverlay from './components/StudioOverlay'
+import LabOverlay from './components/LabOverlay'
 import InsightsOverlay from './components/InsightsOverlay'
 import AdminOverlay from './components/AdminOverlay'
 import PortfolioView from './components/PortfolioView'
 import FeatureCarousel from './components/FeatureCarousel'
 import * as account from './account'
+import { useLab, addPosition, removePosition } from './lab'
 
 export default function App() {
   const [introDone, setIntroDone] = useState(false)
   const [activeOrder, setActiveOrder] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuExpandTier, setMenuExpandTier] = useState(null)
-  const [studioOpen, setStudioOpen] = useState(false)
-  const [studioTab, setStudioTab] = useState('analyze')
+  const [labOpen, setLabOpen] = useState(false)
+  const [labTab, setLabTab] = useState(null)
+  // The portfolio entered in the Lab — shared by every tool and kept across visits.
+  const [lab, setLab] = useLab()
   const [portfolioOpen, setPortfolioOpen] = useState(false)
   const [insightsCtx, setInsightsCtx] = useState(null)
   const [adminOpen, setAdminOpen] = useState(false)
@@ -79,8 +82,10 @@ export default function App() {
       setMenuOpen(false)
       setPortfolioOpen(true)
     } else {
-      setStudioTab(id)
-      setStudioOpen(true)
+      // Every other feature is a tool inside the Lab: open it there, on the
+      // portfolio the user already entered.
+      setLabTab(id === 'lab' ? null : id)
+      setLabOpen(true)
     }
   }
 
@@ -149,25 +154,30 @@ export default function App() {
         onOpenFeature={openFeature}
         onOpenAdmin={() => setAdminOpen(true)}
       />
-      <StudioOverlay
-        open={studioOpen}
+      <LabOverlay
+        open={labOpen}
         user={user}
-        initialTab={studioTab}
+        initialTab={labTab}
+        lab={lab}
+        onLab={setLab}
         onOpenChat={setActiveOrder}
         onOpenInsights={setInsightsCtx}
         onUpgrade={(tier) => {
-          setStudioOpen(false)
+          setLabOpen(false)
           setMenuExpandTier(tier)
           setMenuOpen(true)
         }}
-        onClose={() => setStudioOpen(false)}
+        onClose={() => setLabOpen(false)}
       />
       <InsightsOverlay
         ctx={insightsCtx}
         user={user}
+        lab={lab}
+        onAddToLab={(t) => setLab((l) => addPosition(l, t))}
+        onRemoveFromLab={(t) => setLab((l) => removePosition(l, t))}
         onUpgrade={(tier) => {
           setInsightsCtx(null)
-          setStudioOpen(false)
+          setLabOpen(false)
           setMenuExpandTier(tier)
           setMenuOpen(true)
         }}

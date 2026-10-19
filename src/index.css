@@ -1470,74 +1470,64 @@ body {
   pointer-events: none;
 }
 
-/* ---- polar map ---- */
-.ins-chartwrap { position: relative; flex: 1 1 auto; min-height: 0; }
-.ins-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* ---- polar map: chart + side panel, proposals listed beneath ---- */
+.ins-mapview { display: flex; flex-direction: column; gap: 6px; }
+.ins-map-layout { display: flex; flex-direction: column; gap: 14px; }
+.ins-chartwrap { position: relative; }
+.ins-svg { display: block; width: 100%; height: auto; max-height: 62vh; margin: 0 auto; }
 .ins-axis-label { font-size: 13px; font-weight: 700; fill: var(--muted); }
-.ins-center-label { font-size: 10px; fill: var(--faint); }
-.ins-cluster-label { font-size: 11px; font-weight: 700; opacity: 0.75; }
 .ins-dot { cursor: pointer; }
-.ins-dot-label { font-size: 11px; font-weight: 700; fill: var(--text); }
+.ins-dot-label { font-size: 11px; font-weight: 700; fill: var(--text); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
 .ins-dot-label.faded { fill: var(--muted); }
-.ins-pop-fo { overflow: visible; }
-.ins-pop-slot {
-  width: 100%;
-  height: 100%;
+
+.ins-side { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ins-side .menu-heading { margin-top: 14px; }
+.ins-side-hint { text-align: left; padding: 14px; border: 1px dashed var(--line); border-radius: 14px; }
+.ins-detail { background: var(--chip); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.ins-detail-head { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.ins-detail-head span:last-child { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ins-detail-dot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; }
+.ins-detail-ind { font-size: 12px; color: var(--muted); margin: 3px 0 10px 18px; }
+.ins-score { display: grid; grid-template-columns: 128px 1fr 26px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin: 5px 0; }
+.ins-score b { color: var(--text); text-align: right; }
+.ins-score-track { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; }
+.ins-score-fill { height: 100%; border-radius: 3px; background: var(--muted); }
+.ins-detail-text { font-size: 13px; line-height: 1.5; margin-top: 10px; }
+.ins-detail-btn { margin-top: 12px; }
+.ins-legend-row {
   display: flex;
-  flex-direction: column;
-}
-.ins-pop-slot.above { justify-content: flex-end; }
-.ins-pop-slot.below { justify-content: flex-start; }
-.ins-pop {
-  position: relative;
-  background: var(--black);
-  color: var(--on-black);
-  border-radius: 12px;
-  padding: 12px 13px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
-}
-.ins-pop.above::after,
-.ins-pop.below::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%) rotate(45deg);
-  width: 14px;
-  height: 14px;
-  background: var(--black);
-}
-.ins-pop.above::after { bottom: -6px; }
-.ins-pop.below::after { top: -6px; }
-.ins-pop-title { font-size: 14px; font-weight: 800; }
-.ins-pop-title span { font-weight: 500; color: #6b6b70; font-size: 12px; margin-left: 4px; }
-.ins-pop-scores { display: flex; gap: 10px; font-size: 11px; color: #6b6b70; margin: 5px 0 7px; }
-.ins-pop-text { font-size: 12px; line-height: 1.45; }
-.ins-pop-btn {
-  margin-top: 9px;
+  align-items: center;
+  gap: 8px;
   width: 100%;
+  padding: 8px 10px;
   border: none;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.14);
-  color: var(--on-black);
-  padding: 8px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  text-align: left;
   cursor: pointer;
 }
-.ins-actions { flex: 0 0 auto; padding: 6px 0 12px; }
-.ins-propose { margin-top: 0; }
+.ins-legend-row:hover,
+.ins-legend-row.on { background: var(--chip); }
+.ins-legend-ind { color: var(--muted); font-size: 12px; }
+.ins-legend-w { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 700; }
+.ins-propose { margin-top: 12px; }
 .ins-hint { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.45; }
 
-/* ---- added stocks list (below the fold) ---- */
-.ins-added { padding-top: 18px; border-top: 1px solid var(--hair); }
+/* ---- proposed stocks list (beneath the map) ---- */
+.ins-proposals { padding-top: 16px; margin-top: 8px; border-top: 1px solid var(--hair); }
 .added-row {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 11px 0;
+  padding: 11px 8px;
   border-bottom: 1px solid var(--hair);
+  border-radius: 10px;
+  cursor: pointer;
 }
+.added-row.on { background: var(--chip); }
 .added-badge {
   flex: 0 0 auto;
   width: 42px;
@@ -1550,20 +1540,25 @@ body {
   align-items: center;
   justify-content: center;
 }
-.added-main { min-width: 0; }
+.added-main { min-width: 0; flex: 1 1 auto; }
 .added-name { font-size: 14px; font-weight: 700; }
 .added-name small { font-weight: 500; color: var(--muted); margin-left: 6px; }
 .added-reason { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin-top: 2px; }
-.added-remove {
-  margin-left: auto;
-  border: none;
+.added-add {
+  flex: 0 0 auto;
+  align-self: center;
+  border: 1px solid var(--line);
   background: var(--chip);
-  color: var(--muted);
-  border-radius: 8px;
-  width: 28px;
-  height: 28px;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
 }
+.added-add.in { color: var(--green); border-color: rgba(6, 193, 103, 0.4); }
 
 /* ---- SWOT (vertical stack) ---- */
 .swot-grid {
@@ -1689,6 +1684,34 @@ body {
 .pos-entry-note { margin: -2px 2px 8px; font-size: 12px; color: var(--muted); }
 .pos-entry-note.ok { color: var(--green); }
 .dr-subjecthint { margin: 12px 0 8px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+/* ---- The Lab: enter the subject once, run every tool on it ---- */
+.lab-body { display: flex; flex-direction: column; gap: 14px; }
+.lab-card { border: 1px solid var(--line); border-radius: 18px; padding: 16px; min-width: 0; }
+.lab-card .menu-heading:first-child { margin-top: 0; }
+.lab-step { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+.lab-step span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--green);
+  color: #000;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.lab-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 4px 0 8px; }
+.lab-chip { padding: 7px 11px; border-radius: 999px; background: var(--chip); font-size: 13px; font-weight: 700; }
+.lab-chip b { color: var(--muted); font-weight: 600; margin-left: 3px; }
+.lab-chip.big { font-size: 16px; }
+.lab-summary-name { color: var(--muted); font-size: 14px; }
+.lab-total { font-size: 12px; color: var(--muted); }
+.lab-total.ok { color: var(--green); }
+.lab-edit { margin-top: 8px; }
+.lab-remember { margin-top: 12px; font-size: 11.5px; color: var(--faint); }
+.lab-grid { padding: 0 0 6px; }
+.lab-tools .menu-heading { margin-top: 12px; }
 
 /* ---- My sessions rows with a note of what was done ---- */
 .ms-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -1904,6 +1927,7 @@ body {
   transition: transform 0.15s ease;
 }
 .feat-card:active { transform: scale(0.985); }
+.feat-card.feat-lab { background: linear-gradient(160deg, rgba(6, 193, 103, 0.16), var(--chip) 55%); }
 .feat-icon {
   position: absolute;
   top: 26px;
@@ -1969,7 +1993,6 @@ html {
   color-scheme: dark;
 }
 .landing-hero { display: none; }
-.feat-soon { display: none; }
 
 /* Quick access: a small globe in the login header opens the access-code screen. */
 .menu-globe {
@@ -2082,18 +2105,7 @@ html {
   .feat-blurb { font-size: 14.5px; }
   .feat-cta { padding: 10px 16px; font-size: 14px; }
   .feat-slide.clone { display: none; }
-  .feat-slide.feat-soon { display: flex; }
-  .feat-soon .feat-card {
-    cursor: default;
-    background: transparent;
-    border: 1px dashed var(--line);
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-  }
-  .feat-soon .feat-card:hover { transform: none; background: transparent; border-color: var(--faint); }
-  .feat-soon .feat-name { color: var(--muted); }
-  .feat-soon .feat-blurb { color: var(--faint); }
+  .feat-card.feat-lab { border-color: rgba(6, 193, 103, 0.45); }
 
   /* ---- Overlays: centred panels over a dimmed page ---- */
   .menu-overlay,
@@ -2118,6 +2130,29 @@ html {
   .wa-overlay { max-width: 720px; }
   .portfolio-view { overflow-y: auto; }
   .insights-overlay { animation: fadeIn 0.2s ease; }
+
+  /* The Lab: subject on the left (stays put), tools on the right. */
+  .studio-overlay.lab-overlay { max-width: 1120px; bottom: auto; max-height: calc(100vh - 64px); }
+  .lab-body {
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) 1fr;
+    align-items: start;
+    gap: 18px;
+    padding: 20px 24px 28px;
+  }
+  .lab-subject { position: sticky; top: 0; }
+  .lab-sessions { grid-column: 2; }
+
+  /* Risk map: chart left, details + legend right. */
+  .ins-flat { max-width: 1120px; }
+  .ins-body { padding: 16px 28px 32px; }
+  .ins-map-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    align-items: start;
+    gap: 28px;
+  }
+  .ins-svg { max-height: calc(100vh - 160px); }
 
   @keyframes panelIn {
     from { opacity: 0; transform: translateY(14px) scale(0.985); }

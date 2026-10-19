@@ -2,17 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import * as api from '../account'
 import LoadingFun from './LoadingFun'
 import { SCENARIOS } from '../../api/_lib/scenarios.js'
+import { STARTER_WEIGHT } from '../lab'
 
 // ---------------- Polar risk map geometry ----------------
 // Three axes, 120° apart. A security's dot is the score-weighted blend of the
 // axis directions (barycentric): all-equal scores land in the center, a single
-// dominant axis pulls the dot out to that rim.
-// Portrait viewBox — taller than wide so the map reads vertically.
-const VB_W = 470
-const VB_H = 640
-const CX = 235
-const CY = 300
-const R = 188
+// dominant axis pulls the dot out to that rim. Scores are squared first so the
+// dominant axis wins clearly and a portfolio doesn't collapse into the middle.
+const VB_W = 560
+const VB_H = 460
+const CX = 280
+const CY = 248
+const R = 190
 const AXES = [
   { key: 'political', label: 'Political dependency', a: -Math.PI / 2 },
   { key: 'momentum', label: 'Momentum / news', a: Math.PI / 6 },
@@ -24,13 +25,55 @@ function place(s) {
   let y = 0
   let sum = 0
   for (const ax of AXES) {
-    const v = (s[ax.key] ?? 50) / 100
+    const v = ((s[ax.key] ?? 50) / 100) ** 2
     x += Math.cos(ax.a) * v
     y += Math.sin(ax.a) * v
     sum += v
   }
   if (!sum) return { x: CX, y: CY }
   return { x: CX + (x / sum) * R, y: CY + (y / sum) * R }
+}
+
+// Nudge dots apart until none overlap (room for the ticker label below each),
+// keeping them inside the outer ring. Deterministic, so the map doesn't jump.
+function relax(nodes) {
+  const pts = nodes.map((n) => ({ ...n }))
+  for (let iter = 0; iter < 80; iter++) {
+    let moved = false
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const a = pts[i]
+        const b = pts[j]
+        let dx = b.x - a.x
+        let dy = b.y - a.y
+        let d = Math.hypot(dx, dy)
+        const min = a.r + b.r + 24
+        if (d >= min) continue
+        if (d < 0.01) {
+          // Same spot: split them along a fixed direction per pair.
+          dx = Math.cos(i + j)
+          dy = Math.sin(i + j)
+          d = 1
+        }
+        const push = (min - d) / 2
+        a.x -= (dx / d) * push
+        a.y -= (dy / d) * push
+        b.x += (dx / d) * push
+        b.y += (dy / d) * push
+        moved = true
+      }
+    }
+    for (const p of pts) {
+      const d = Math.hypot(p.x - CX, p.y - CY)
+      const max = R - p.r
+      if (d > max) {
+        p.x = CX + ((p.x - CX) / d) * max
+        p.y = CY + ((p.y - CY) / d) * max
+      }
+    }
+    if (!moved) break
+  }
+  return Object.fromEntries(pts.map((p) => [p.ticker, p]))
 }
 
 const IND_COLORS = {
@@ -49,24 +92,34 @@ const IND_COLORS = {
 const indColor = (ind) => IND_COLORS[ind] || '#7d8a99'
 
 // ---------------- Polar map view ----------------
-function PolarMap({ data, weights, showProposals, sel, onSelect, onDismiss }) {
+function PolarMap({ data, weights, showProposals, selTicker, onSelect, onDismiss }) {
+  const dotR = (t) => 9 + Math.sqrt(weights[t] || 4) * 1.4
+
+  const pos = useMemo(() => {
+    const nodes = [
+      ...data.stocks.map((s) => ({ ticker: s.ticker, r: dotR(s.ticker), ...place(s) })),
+      ...(showProposals ? data.proposals.map((p) => ({ ticker: p.ticker, r: 13, ...place(p) })) : []),
+    ]
+    return relax(nodes)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, weights, showProposals])
+
+  // Industry clusters (heat blobs) around the holdings that share an industry.
   const clusters = useMemo(() => {
     const groups = {}
     for (const s of data.stocks) {
       const ind = s.industry || 'Other'
-      ;(groups[ind] = groups[ind] || []).push(place(s))
+      ;(groups[ind] = groups[ind] || []).push(pos[s.ticker])
     }
     return Object.entries(groups)
+      .filter(([, pts]) => pts.length > 1)
       .map(([ind, pts]) => {
         const cx = pts.reduce((a, p) => a + p.x, 0) / pts.length
         const cy = pts.reduce((a, p) => a + p.y, 0) / pts.length
-        const r = Math.max(46, ...pts.map((p) => Math.hypot(p.x - cx, p.y - cy) + 32))
-        return { ind, cx, cy, r, n: pts.length }
+        const r = Math.max(...pts.map((p) => Math.hypot(p.x - cx, p.y - cy) + p.r + 12))
+        return { ind, cx, cy, r }
       })
-      .sort((a, b) => b.r - a.r)
-  }, [data.stocks])
-
-  const dotR = (t) => 9 + Math.sqrt(weights[t] || 4) * 1.4
+  }, [data.stocks, pos])
 
   return (
     <div className="ins-chartwrap" onClick={onDismiss}>
@@ -78,8 +131,8 @@ function PolarMap({ data, weights, showProposals, sel, onSelect, onDismiss }) {
         {AXES.map((ax) => {
           const ex = CX + Math.cos(ax.a) * R
           const ey = CY + Math.sin(ax.a) * R
-          const lx = CX + Math.cos(ax.a) * (R + 26)
-          const ly = CY + Math.sin(ax.a) * (R + 26)
+          const lx = CX + Math.cos(ax.a) * (R + 22)
+          const ly = CY + Math.sin(ax.a) * (R + 22) + (ax.a < 0 ? -2 : 14)
           return (
             <g key={ax.key}>
               <line x1={CX} y1={CY} x2={ex} y2={ey} stroke="var(--faint)" strokeWidth="1.5" strokeDasharray="2 4" />
@@ -89,34 +142,23 @@ function PolarMap({ data, weights, showProposals, sel, onSelect, onDismiss }) {
             </g>
           )
         })}
-        <text x={CX} y={CY + 4} textAnchor="middle" className="ins-center-label">
-          low risk
-        </text>
 
-        {/* industry clusters (heat blobs) */}
         {clusters.map((c) => (
-          <g key={c.ind}>
-            <circle cx={c.cx} cy={c.cy} r={c.r} fill={indColor(c.ind)} opacity="0.10" />
-            <circle cx={c.cx} cy={c.cy} r={c.r} fill="none" stroke={indColor(c.ind)} opacity="0.4" strokeDasharray="5 5" />
-            <text x={c.cx} y={c.cy - c.r - 6} textAnchor="middle" className="ins-cluster-label" fill={indColor(c.ind)}>
-              {c.ind}
-              {c.n > 1 ? ` ×${c.n}` : ''}
-            </text>
-          </g>
+          <circle key={c.ind} cx={c.cx} cy={c.cy} r={c.r} fill={indColor(c.ind)} fillOpacity="0.08" stroke={indColor(c.ind)} strokeOpacity="0.35" strokeDasharray="5 5" />
         ))}
 
         {/* proposal dots (faded, dashed) */}
         {showProposals &&
           data.proposals.map((p) => {
-            const pt = place(p)
-            const active = sel?.ticker === p.ticker
+            const pt = pos[p.ticker]
+            const active = selTicker === p.ticker
             return (
               <g
                 key={p.ticker}
                 className="ins-dot ins-proposal"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onSelect({ ...p, ...pt, isProposal: true })
+                  onSelect(p.ticker)
                 }}
               >
                 <circle
@@ -138,55 +180,62 @@ function PolarMap({ data, weights, showProposals, sel, onSelect, onDismiss }) {
 
         {/* holdings */}
         {data.stocks.map((s) => {
-          const pt = place(s)
-          const r = dotR(s.ticker)
+          const pt = pos[s.ticker]
+          const active = selTicker === s.ticker
           return (
             <g
               key={s.ticker}
               className="ins-dot"
               onClick={(e) => {
                 e.stopPropagation()
-                onSelect({ ...s, ...pt, isProposal: false })
+                onSelect(s.ticker)
               }}
             >
-              <circle cx={pt.x} cy={pt.y} r={r} fill={indColor(s.industry)} stroke="#000" strokeWidth="2" />
-              <text x={pt.x} y={pt.y + r + 14} textAnchor="middle" className="ins-dot-label">
+              <circle cx={pt.x} cy={pt.y} r={pt.r} fill={indColor(s.industry)} stroke={active ? 'var(--text)' : '#000'} strokeWidth={active ? 3 : 2} />
+              <text x={pt.x} y={pt.y + pt.r + 14} textAnchor="middle" className="ins-dot-label">
                 {s.ticker}
               </text>
             </g>
           )
         })}
-
-        {/* reasoning popup, anchored in chart coordinates next to the dot */}
-        {sel &&
-          (() => {
-            const W = 250
-            const H = 220
-            const above = sel.y > CY
-            const fx = Math.max(6, Math.min(VB_W - W - 6, sel.x - W / 2))
-            const fy = above ? sel.y - H - 20 : sel.y + 22
-            return (
-              <foreignObject x={fx} y={fy} width={W} height={H} className="ins-pop-fo">
-                <div className={`ins-pop-slot ${above ? 'above' : 'below'}`} onClick={(e) => e.stopPropagation()}>
-                  <div className={`ins-pop ${above ? 'above' : 'below'}`}>
-                    <div className="ins-pop-title">
-                      {sel.ticker} <span>{sel.name}</span>
-                    </div>
-                    <div className="ins-pop-scores">
-                      <span>Political {sel.political}</span>
-                      <span>Momentum {sel.momentum}</span>
-                      <span>Valuation {sel.valuation}</span>
-                    </div>
-                    <div className="ins-pop-text">{sel.isProposal ? sel.reason : sel.note || 'No notable single risk flagged.'}</div>
-                    <button className="ins-pop-btn" onClick={onDismiss}>
-                      {sel.isProposal ? 'Add to my list' : 'Close'}
-                    </button>
-                  </div>
-                </div>
-              </foreignObject>
-            )
-          })()}
       </svg>
+    </div>
+  )
+}
+
+// Score bars + the desk's reasoning for whatever is selected on the map.
+function StockDetail({ s, inLab, onAdd, onRemove }) {
+  return (
+    <div className="ins-detail">
+      <div className="ins-detail-head">
+        <span className="ins-detail-dot" style={{ background: indColor(s.industry) }} />
+        <b>{s.ticker}</b>
+        <span>{s.name}</span>
+      </div>
+      <div className="ins-detail-ind">
+        {s.industry}
+        {s.isProposal ? ' · proposed by the desk' : ''}
+      </div>
+      {AXES.map((ax) => (
+        <div key={ax.key} className="ins-score">
+          <span>{ax.label}</span>
+          <div className="ins-score-track">
+            <div className="ins-score-fill" style={{ width: `${s[ax.key] ?? 0}%` }} />
+          </div>
+          <b>{s[ax.key]}</b>
+        </div>
+      ))}
+      <div className="ins-detail-text">{s.isProposal ? s.reason : s.note || 'No notable single risk flagged.'}</div>
+      {s.isProposal &&
+        (inLab ? (
+          <button className="menu-linkbtn ins-detail-btn" onClick={onRemove}>
+            Added to your portfolio ✓ · Undo
+          </button>
+        ) : (
+          <button className="menu-primary dark ins-detail-btn" onClick={onAdd}>
+            Add to my portfolio
+          </button>
+        ))}
     </div>
   )
 }
@@ -325,7 +374,7 @@ const VIEWS = [
   { id: 'stress', label: 'Stress test' },
 ]
 
-export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
+export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFromLab, onUpgrade, onClose }) {
   const [view, setView] = useState('map')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
@@ -334,7 +383,8 @@ export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
   const [stressData, setStressData] = useState(null)
   const [scenarioId, setScenarioId] = useState(null)
   const [showProposals, setShowProposals] = useState(false)
-  const [sel, setSel] = useState(null)
+  const [selTicker, setSelTicker] = useState(null)
+  // Proposals added this visit — the Lab portfolio (when there is one) is the source of truth.
   const [added, setAdded] = useState([])
 
   // New subject → start fresh.
@@ -345,7 +395,7 @@ export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
     setStressData(null)
     setScenarioId(null)
     setShowProposals(false)
-    setSel(null)
+    setSelTicker(null)
     setAdded([])
     setErr(null)
   }, [ctx])
@@ -384,13 +434,25 @@ export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
       .finally(() => setBusy(false))
   }
 
-  // Dismissing a highlighted proposal keeps it: it moves to the added list.
-  const dismissSel = () => {
-    if (sel?.isProposal && !added.some((a) => a.ticker === sel.ticker)) {
-      setAdded((l) => [...l, sel])
-    }
-    setSel(null)
+  const inLab = (t) => (lab ? lab.rows.some((r) => r.ticker === t) : added.includes(t))
+  const addProposal = (t) => {
+    setAdded((l) => [...l, t])
+    onAddToLab?.(t)
   }
+  const removeProposal = (t) => {
+    setAdded((l) => l.filter((x) => x !== t))
+    onRemoveFromLab?.(t)
+  }
+
+  const selected =
+    mapData &&
+    selTicker &&
+    (() => {
+      const h = mapData.stocks.find((s) => s.ticker === selTicker)
+      if (h) return { ...h, isProposal: false }
+      const p = mapData.proposals.find((s) => s.ticker === selTicker)
+      return p && { ...p, isProposal: true }
+    })()
 
   const body = (
     <>
@@ -426,59 +488,87 @@ export default function InsightsOverlay({ ctx, user, onUpgrade, onClose }) {
         )}
 
         {!locked && view === 'map' && (
-          <>
-            <div className="ins-fold">
-              {busy && !mapData && <LoadingFun label={`Placing your ${items.length > 1 ? 'portfolio' : 'stock'} on the map…`} />}
-              {err && <div className="menu-msg err">{err}</div>}
-              {mapData && (
-                <>
+          <div className="ins-mapview">
+            {busy && !mapData && <LoadingFun label={`Placing your ${items.length > 1 ? 'portfolio' : 'stock'} on the map…`} />}
+            {err && <div className="menu-msg err">{err}</div>}
+            {mapData && (
+              <>
+                <div className="ins-map-layout">
                   <PolarMap
                     data={mapData}
                     weights={weights}
                     showProposals={showProposals}
-                    sel={sel}
-                    onSelect={(p) => {
-                      if (sel?.isProposal && sel.ticker !== p.ticker && !added.some((a) => a.ticker === sel.ticker)) {
-                        setAdded((l) => [...l, sel])
-                      }
-                      setSel(p)
-                    }}
-                    onDismiss={dismissSel}
+                    selTicker={selTicker}
+                    onSelect={setSelTicker}
+                    onDismiss={() => setSelTicker(null)}
                   />
-                  <div className="ins-actions">
-                    {!showProposals ? (
+
+                  <aside className="ins-side">
+                    {selected ? (
+                      <StockDetail
+                        s={selected}
+                        inLab={inLab(selected.ticker)}
+                        onAdd={() => addProposal(selected.ticker)}
+                        onRemove={() => removeProposal(selected.ticker)}
+                      />
+                    ) : (
+                      <div className="ins-hint ins-side-hint">Tap any dot to see its scores and why it sits where it does.</div>
+                    )}
+
+                    <div className="menu-heading">On the map</div>
+                    {mapData.stocks.map((s) => (
+                      <button key={s.ticker} className={`ins-legend-row ${selTicker === s.ticker ? 'on' : ''}`} onClick={() => setSelTicker(s.ticker)}>
+                        <span className="ins-detail-dot" style={{ background: indColor(s.industry) }} />
+                        <b>{s.ticker}</b>
+                        <span className="ins-legend-ind">{s.industry}</span>
+                        {weights[s.ticker] && items.length > 1 && <span className="ins-legend-w">{weights[s.ticker]}%</span>}
+                      </button>
+                    ))}
+
+                    {!showProposals && (
                       <button className="menu-primary dark ins-propose" onClick={() => setShowProposals(true)} disabled={!mapData.proposals.length}>
                         Propose additions
                       </button>
-                    ) : (
-                      <div className="ins-hint">Tap a faded dot to see why the desk picked it — leave it highlighted-then-dismissed and it lands in your list below.</div>
                     )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="ins-added">
-              <div className="menu-heading">Added stocks</div>
-              {added.length === 0 && <div className="empty-note">Nothing added yet — explore the proposals above.</div>}
-              {added.map((a) => (
-                <div key={a.ticker} className="added-row">
-                  <div className="added-badge" style={{ background: indColor(a.industry) }}>
-                    {a.ticker.slice(0, 4)}
-                  </div>
-                  <div className="added-main">
-                    <div className="added-name">
-                      {a.name || a.ticker} <small>{a.industry}</small>
-                    </div>
-                    <div className="added-reason">{a.reason}</div>
-                  </div>
-                  <button className="added-remove" onClick={() => setAdded((l) => l.filter((x) => x.ticker !== a.ticker))} aria-label="Remove">
-                    ✕
-                  </button>
+                  </aside>
                 </div>
-              ))}
-            </div>
-          </>
+
+                {showProposals && (
+                  <section className="ins-proposals">
+                    <div className="menu-heading">Proposed stocks</div>
+                    <div className="menu-note">
+                      Picks that fill the gaps on your map{lab ? ` — adding one puts it in your Lab portfolio at ${STARTER_WEIGHT}%, ready for the next tool.` : '.'}
+                    </div>
+                    {mapData.proposals.map((p) => {
+                      const isIn = inLab(p.ticker)
+                      return (
+                        <div key={p.ticker} className={`added-row ${selTicker === p.ticker ? 'on' : ''}`} onClick={() => setSelTicker(p.ticker)}>
+                          <div className="added-badge" style={{ background: indColor(p.industry) }}>
+                            {p.ticker.slice(0, 4)}
+                          </div>
+                          <div className="added-main">
+                            <div className="added-name">
+                              {p.name || p.ticker} <small>{p.industry}</small>
+                            </div>
+                            <div className="added-reason">{p.reason}</div>
+                          </div>
+                          <button
+                            className={`added-add ${isIn ? 'in' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              isIn ? removeProposal(p.ticker) : addProposal(p.ticker)
+                            }}
+                          >
+                            {isIn ? 'Added ✓' : '+ Add'}
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </section>
+                )}
+              </>
+            )}
+          </div>
         )}
 
         {!locked && view === 'swot' && (

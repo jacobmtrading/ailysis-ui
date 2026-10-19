@@ -9,6 +9,12 @@ export const FEATURES = [
     blurb: 'Watch the Ailysis fund trade on its own — live performance, every order with the board debate behind it, and the full allocation.',
   },
   {
+    id: 'lab',
+    name: 'The Lab',
+    tier: null,
+    blurb: 'One dashboard for all the tools — enter your portfolio once, then check it, map it and stress test it without typing it again.',
+  },
+  {
     id: 'analyze',
     name: 'Personalized analysis',
     tier: 'premium',
