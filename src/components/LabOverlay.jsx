@@ -41,8 +41,9 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
   const [activity, setActivity] = useState([])
   // The stock list (thousands of names) is its own chunk, fetched when the Lab opens.
   const [uni, setUni] = useState(null)
-  // Subject editor: open until something has been entered, then folded to a summary.
-  const [editing, setEditing] = useState(false)
+  // The Lab walks through three steps: pick stock vs. portfolio, enter it and
+  // save, then the tool overview. A saved subject skips straight to the tools.
+  const [stage, setStage] = useState('choose')
   const [query, setQuery] = useState('')
   // Which position row's ticker box is focused — it gets the same suggestion list as the stock search.
   const [activeRow, setActiveRow] = useState(null)
@@ -77,7 +78,7 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
       setTab(initialTab && TOOL_LABEL[initialTab] ? initialTab : 'check')
       setUpsell(null)
       setErr(null)
-      setEditing(!subject)
+      setStage(subject ? 'tools' : 'choose')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialTab])
@@ -184,7 +185,7 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
   const setMode = (mode) => {
     onLab({ ...lab, mode })
     setAnalyzePick(null)
-    if (mode === 'stock' ? !lab.stock : !positions.length) setEditing(true)
+    if (mode === 'stock' ? !lab.stock : !positions.length) setStage('enter')
   }
 
   const searchHint = query.trim() && (!uni ? 'Loading the stock list…' : !matches.length ? 'No match — try the ticker symbol.' : null)
@@ -278,7 +279,6 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
           onClick={() => {
             onLab({ ...lab, stock: m })
             setQuery('')
-            setEditing(false)
           }}
         >
           {optionLabel(m)}
@@ -449,55 +449,104 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
 
         {user && (
           <>
-            <section className="lab-card lab-subject">
-              <div className="lab-step">
-                <span>1</span> Enter it once
-              </div>
-              <div className="chip-row">
-                <button className={`chip ${lab.mode === 'portfolio' ? 'on' : ''}`} onClick={() => setMode('portfolio')}>
-                  My portfolio
-                </button>
-                <button className={`chip ${lab.mode === 'stock' ? 'on' : ''}`} onClick={() => setMode('stock')}>
-                  A single stock
-                </button>
-              </div>
+            {stage === 'choose' && (
+              <section className="lab-wizard">
+                <div className="lab-step">
+                  <span>1</span> What do you want to look at?
+                </div>
+                <div className="lab-choice">
+                  <button
+                    className="lab-choice-card"
+                    onClick={() => {
+                      onLab({ ...lab, mode: 'stock' })
+                      setStage('enter')
+                    }}
+                  >
+                    <b>A single stock</b>
+                    <span>Search one stock or ETF and run every tool on it.</span>
+                  </button>
+                  <button
+                    className="lab-choice-card"
+                    onClick={() => {
+                      onLab({ ...lab, mode: 'portfolio' })
+                      setStage('enter')
+                    }}
+                  >
+                    <b>My portfolio</b>
+                    <span>Enter your positions with their weights once.</span>
+                  </button>
+                </div>
+              </section>
+            )}
 
-              {editing || !subject ? (
-                <>
-                  {lab.mode === 'stock' ? stockSearch : positionsEditor}
-                  {subject && (
-                    <button className="menu-primary dark" onClick={() => setEditing(false)}>
-                      Done — use this {lab.mode === 'stock' ? 'stock' : 'portfolio'}
+            {stage === 'enter' && (
+              <section className="lab-wizard">
+                <button className="menu-linkbtn lab-backstep" onClick={() => setStage('choose')}>
+                  ← Back
+                </button>
+                <div className="lab-step">
+                  <span>2</span> {lab.mode === 'stock' ? 'Which stock?' : 'Enter your portfolio'}
+                </div>
+                {lab.mode === 'stock' ? (
+                  <>
+                    {lab.stock && (
+                      <div className="lab-summary">
+                        <span className="lab-chip big">{lab.stock.t}</span>
+                        <span className="lab-summary-name">{lab.stock.unlisted ? 'Looked up live' : lab.stock.n}</span>
+                      </div>
+                    )}
+                    {stockSearch}
+                  </>
+                ) : (
+                  <>
+                    {positionsEditor}
+                    {positions.length > 0 && (
+                      <div className={`lab-total ${totalWeight === 100 ? 'ok' : ''}`}>
+                        {positions.length} position{positions.length === 1 ? '' : 's'} · {totalWeight}% allocated
+                      </div>
+                    )}
+                  </>
+                )}
+                <button className="menu-primary lab-save" disabled={!subject} onClick={() => setStage('tools')}>
+                  {subject ? 'Save' : lab.mode === 'stock' ? 'Pick a stock to save' : 'Add a position with a weight to save'}
+                </button>
+                <div className="lab-remember">Saved on this device — you won't have to type it again.</div>
+              </section>
+            )}
+
+            {stage === 'tools' && (
+              <section className="lab-card lab-subject">
+                <div className="lab-subject-top">
+                  <div className="menu-heading">{lab.mode === 'stock' ? 'Your stock' : 'Your portfolio'}</div>
+                  <button className="menu-linkbtn" onClick={() => setStage('enter')}>
+                    Edit
+                  </button>
+                  <button className="menu-linkbtn" onClick={() => setStage('choose')}>
+                    Switch
+                  </button>
+                </div>
+                {subjectSummary}
+              </section>
+            )}
+
+            {stage === 'tools' && (
+              <section className="lab-card lab-tools">
+                <div className="lab-step">
+                  <span>3</span> Pick a tool
+                </div>
+                <div className="dr-grid lab-grid">
+                  {TOOLS.map((t) => (
+                    <button key={t.id} className={`dr-cell ${tab === t.id ? 'active' : ''}`} onClick={() => pickTab(t.id)}>
+                      {t.label}
+                      {locked(toolNeed(t.id)) ? ' 🔒' : ''}
                     </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  {subjectSummary}
-                  <button className="menu-linkbtn lab-edit" onClick={() => setEditing(true)}>
-                    Edit {lab.mode === 'stock' ? 'stock' : 'positions'}
-                  </button>
-                </>
-              )}
-              <div className="lab-remember">Remembered on this device — every tool in the Lab runs on it.</div>
-            </section>
+                  ))}
+                </div>
+                {toolPanel}
+              </section>
+            )}
 
-            <section className="lab-card lab-tools">
-              <div className="lab-step">
-                <span>2</span> Run any tool on it
-              </div>
-              <div className="dr-grid lab-grid">
-                {TOOLS.map((t) => (
-                  <button key={t.id} className={`dr-cell ${tab === t.id ? 'active' : ''}`} onClick={() => pickTab(t.id)}>
-                    {t.label}
-                    {locked(toolNeed(t.id)) ? ' 🔒' : ''}
-                  </button>
-                ))}
-              </div>
-              {toolPanel}
-            </section>
-
-            {sessions.length > 0 && (
+            {stage === 'tools' && sessions.length > 0 && (
               <section className="lab-card lab-sessions">
                 <div className="menu-heading">My sessions</div>
                 {sessions.map((s) => (

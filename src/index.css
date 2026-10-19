@@ -1711,6 +1711,30 @@ body {
 .lab-edit { margin-top: 8px; }
 .lab-remember { margin-top: 12px; font-size: 11.5px; color: var(--faint); }
 .lab-grid { padding: 0 0 6px; }
+.lab-wizard { display: flex; flex-direction: column; width: 100%; max-width: 560px; margin: 8px auto 0; }
+.lab-wizard .lab-step { font-size: 20px; margin-bottom: 16px; }
+.lab-choice { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.lab-choice-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 22px 20px;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  background: var(--chip);
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.lab-choice-card:hover { border-color: rgba(6, 193, 103, 0.6); }
+.lab-choice-card b { font-size: 18px; }
+.lab-choice-card span { font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+.lab-backstep { align-self: flex-start; margin-bottom: 12px; }
+.lab-save { margin-top: 14px; }
+.lab-subject-top { display: flex; align-items: center; gap: 14px; }
+.lab-subject-top .menu-heading { margin: 0 auto 0 0; }
 .lab-tools .menu-heading { margin-top: 12px; }
 
 /* ---- My sessions rows with a note of what was done ---- */
@@ -2141,6 +2165,9 @@ html {
     padding: 20px 24px 28px;
   }
   .lab-subject { position: sticky; top: 0; }
+  .lab-wizard { grid-column: 1 / -1; padding: 24px 0 12px; }
+  .lab-choice { grid-template-columns: 1fr 1fr; }
+  .lab-choice-card { min-height: 150px; justify-content: flex-end; }
   .lab-sessions { grid-column: 2; }
 
   /* Risk map: chart left, details + legend right. */
