@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import * as api from '../account'
-import { filledRows } from '../lab'
+import { filledRows, freshLab } from '../lab'
 import LoadingFun from './LoadingFun'
 
 // Every tool in the Lab, in grid order. `need` is the tier a run needs —
@@ -186,6 +186,17 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
     onLab({ ...lab, mode })
     setAnalyzePick(null)
     if (mode === 'stock' ? !lab.stock : !positions.length) setStage('enter')
+  }
+
+  // "Change": a brand-new Lab — the saved subject and every tool's inputs are wiped.
+  const startOver = () => {
+    onLab(freshLab())
+    setQuery('')
+    setAnalyzePick(null)
+    setTab('check')
+    setUpsell(null)
+    setErr(null)
+    setStage('choose')
   }
 
   const searchHint = query.trim() && (!uni ? 'Loading the stock list…' : !matches.length ? 'No match — try the ticker symbol.' : null)
@@ -521,8 +532,8 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
                   <button className="menu-linkbtn" onClick={() => setStage('enter')}>
                     Edit
                   </button>
-                  <button className="menu-linkbtn" onClick={() => setStage('choose')}>
-                    Switch
+                  <button className="menu-linkbtn" onClick={startOver}>
+                    Change
                   </button>
                 </div>
                 {subjectSummary}

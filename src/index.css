@@ -2155,20 +2155,13 @@ html {
   .portfolio-view { overflow-y: auto; }
   .insights-overlay { animation: fadeIn 0.2s ease; }
 
-  /* The Lab: subject on the left (stays put), tools on the right. */
-  .studio-overlay.lab-overlay { max-width: 1120px; bottom: auto; max-height: calc(100vh - 64px); }
-  .lab-body {
-    display: grid;
-    grid-template-columns: minmax(300px, 380px) 1fr;
-    align-items: start;
-    gap: 18px;
-    padding: 20px 24px 28px;
-  }
-  .lab-subject { position: sticky; top: 0; }
-  .lab-wizard { grid-column: 1 / -1; padding: 24px 0 12px; }
-  .lab-choice { grid-template-columns: 1fr 1fr; }
-  .lab-choice-card { min-height: 150px; justify-content: flex-end; }
-  .lab-sessions { grid-column: 2; }
+  /* The Lab: same stacked cards as on phones, just a wider panel. */
+  .studio-overlay.lab-overlay { max-width: 880px; }
+  .lab-body { padding: 24px 32px 32px; gap: 16px; }
+  .lab-wizard { max-width: none; padding: 16px 0 12px; }
+  .lab-choice { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .lab-choice-card { min-height: 180px; justify-content: flex-end; padding: 26px 24px; }
+  .lab-choice-card b { font-size: 22px; }
 
   /* Risk map: chart left, details + legend right. */
   .ins-flat { max-width: 1120px; }

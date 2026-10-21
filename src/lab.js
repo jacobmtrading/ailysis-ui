@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 const KEY = 'ailysis_lab'
 const EMPTY_ROW = { ticker: '', weightPct: '' }
 
-const fresh = () => ({
+export const freshLab = () => ({
   mode: 'portfolio',
   rows: [{ ...EMPTY_ROW }, { ...EMPTY_ROW }, { ...EMPTY_ROW }],
   stock: null,
@@ -15,12 +15,12 @@ const fresh = () => ({
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY))
-    if (!saved) return fresh()
+    if (!saved) return freshLab()
     const rows = (saved.rows || []).filter((r) => r.ticker)
     while (rows.length < 3) rows.push({ ...EMPTY_ROW })
     return { mode: saved.mode === 'stock' ? 'stock' : 'portfolio', rows, stock: saved.stock || null }
   } catch {
-    return fresh()
+    return freshLab()
   }
 }
 
