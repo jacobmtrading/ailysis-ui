@@ -298,13 +298,16 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
     </>
   )
 
-  // What the Lab is working on, folded down to one glanceable card.
+  // What the Lab is working on, folded down to one glanceable card. Built on
+  // every render, so it must cope with stock mode before a stock is picked.
   const subjectSummary =
     lab.mode === 'stock' ? (
-      <div className="lab-summary">
-        <span className="lab-chip big">{lab.stock.t}</span>
-        <span className="lab-summary-name">{lab.stock.unlisted ? 'Looked up live' : lab.stock.n}</span>
-      </div>
+      lab.stock && (
+        <div className="lab-summary">
+          <span className="lab-chip big">{lab.stock.t}</span>
+          <span className="lab-summary-name">{lab.stock.unlisted ? 'Looked up live' : lab.stock.n}</span>
+        </div>
+      )
     ) : (
       <>
         <div className="lab-summary">

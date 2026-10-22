@@ -1668,7 +1668,7 @@ body {
   cursor: pointer;
   text-align: center;
 }
-.dr-cell:hover:not(:disabled) { border-color: var(--black); color: var(--text); }
+.dr-cell:hover:not(:disabled):not(.active) { border-color: var(--black); color: var(--text); }
 .dr-cell.active { background: var(--black); color: var(--on-black); border-color: var(--black); }
 .dr-cell:disabled { opacity: 0.5; cursor: default; }
 .pos-entry { margin-bottom: 2px; }
