@@ -73,12 +73,21 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
   }, [lab])
 
   // Opened from a feature card: land on that tool, with the editor open only if nothing is entered yet.
+  // The builder needs no subject, so it opens on its form; the portfolio check
+  // skips the stock-vs-portfolio pick and goes straight to entering positions.
   useEffect(() => {
     if (open) {
       setTab(initialTab && TOOL_LABEL[initialTab] ? initialTab : 'check')
       setUpsell(null)
       setErr(null)
-      setStage(subject ? 'tools' : 'choose')
+      if (initialTab === 'build') {
+        setStage('tools')
+      } else if (initialTab === 'check') {
+        if (lab.mode !== 'portfolio') onLab({ ...lab, mode: 'portfolio' })
+        setStage(positions.length ? 'tools' : 'enter')
+      } else {
+        setStage(subject ? 'tools' : 'choose')
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialTab])
@@ -543,15 +552,23 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
             {stage === 'tools' && (
               <section className="lab-card lab-subject">
                 <div className="lab-subject-top">
-                  <div className="menu-heading">{lab.mode === 'stock' ? 'Your stock' : 'Your portfolio'}</div>
-                  <button className="menu-linkbtn" onClick={() => setStage('enter')}>
-                    Edit
-                  </button>
-                  <button className="menu-linkbtn" onClick={startOver}>
-                    New
-                  </button>
+                  <div className="menu-heading">{!subject ? 'Nothing entered yet' : lab.mode === 'stock' ? 'Your stock' : 'Your portfolio'}</div>
+                  {subject ? (
+                    <>
+                      <button className="menu-linkbtn" onClick={() => setStage('enter')}>
+                        Edit
+                      </button>
+                      <button className="menu-linkbtn" onClick={startOver}>
+                        New
+                      </button>
+                    </>
+                  ) : (
+                    <button className="menu-linkbtn" onClick={() => setStage('choose')}>
+                      Enter
+                    </button>
+                  )}
                 </div>
-                {subjectSummary}
+                {subject ? subjectSummary : <div className="menu-note">The builder doesn't need one — the other tools run on a stock or portfolio you enter.</div>}
               </section>
             )}
 

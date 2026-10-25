@@ -1,7 +1,8 @@
 // Dev-only harness: open http://localhost:5173/?demo=lab to exercise the Lab
 // (shared portfolio entry, tool grid, insight tools) with a fake logged-in user
 // and the canned insights data. Builder runs return a canned board chat that
-// opens in the chat overlay. Only reachable in `vite dev` — main.jsx guards it.
+// opens in the chat overlay. Add &tab=build (or check, map…) to open as a
+// landing-page feature card would. Only reachable in `vite dev` — main.jsx guards it.
 import { useState } from 'react'
 import LabOverlay from '../components/LabOverlay'
 import InsightsOverlay from '../components/InsightsOverlay'
@@ -73,6 +74,7 @@ export default function LabDemo() {
       <LabOverlay
         open
         user={DEMO_USER}
+        initialTab={new URLSearchParams(window.location.search).get('tab')}
         lab={lab}
         onLab={setLab}
         onOpenChat={setOrder}
