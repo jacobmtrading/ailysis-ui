@@ -23,6 +23,8 @@ async function callDeepSeek(system, user, maxTokens = 1500) {
   })
   if (!res.ok) throw new Error(`DeepSeek ${res.status}: ${(await res.text()).slice(0, 300)}`)
   const data = await res.json()
+  // A reply cut off at max_tokens is half a JSON object — say so instead of a parse error.
+  if (data.choices[0].finish_reason === 'length') throw new Error('The board ran out of room mid-answer — please try again.')
   return JSON.parse(data.choices[0].message.content)
 }
 
