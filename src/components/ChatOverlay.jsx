@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AGENTS } from '../data/agents'
+import { exportPortfolioPdf } from '../portfolioPdf'
 
 function initials(name) {
   return name
@@ -53,6 +54,79 @@ function Poll({ msg }) {
           )
         })}
       </div>
+      <span className="wa-time">{msg.time}</span>
+    </div>
+  )
+}
+
+// Portfolio builder: the closing message is a structured overview of the
+// proposed portfolio instead of a wall of text, with a PDF export.
+function PortfolioOverview({ msg }) {
+  const o = msg.overview
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+  const total = o.positions.reduce((a, p) => a + p.weightPct, 0) + (o.cashPct || 0)
+  const max = Math.max(...o.positions.map((p) => p.weightPct), o.cashPct || 0, 1)
+  const exportPdf = async () => {
+    setBusy(true)
+    setErr(null)
+    try {
+      await exportPortfolioPdf(o)
+    } catch (e) {
+      setErr('Export failed — try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="wa-bubble wa-in wa-poll wa-overview">
+      <div className="wa-sender" style={{ color: AGENTS.mod.color }}>
+        {AGENTS.mod.name}
+      </div>
+      <div className="wa-poll-q">📋 Proposed portfolio</div>
+      {o.summary && <div className="wa-ov-summary">{o.summary}</div>}
+      <div className="wa-ov-meta">
+        {o.positions.length} positions{o.cashPct > 0 ? ` · ${o.cashPct}% cash` : ''}
+        {o.vote ? ` · approved ${o.vote}` : ''}
+      </div>
+
+      <div className="wa-ov-list">
+        {o.positions.map((p) => (
+          <div key={p.ticker} className="wa-ov-row">
+            <div className="wa-ov-top">
+              <span className="wa-ov-ticker">{p.ticker}</span>
+              <span className="wa-ov-name">{p.name}</span>
+              <span className="wa-ov-weight">{p.weightPct}%</span>
+            </div>
+            <div className="wa-poll-bar">
+              <div className="wa-poll-fill yes" style={{ width: `${(p.weightPct / max) * 100}%` }} />
+            </div>
+            <div className="wa-ov-sector">{p.type === 'etf' ? `ETF · ${p.sector}` : p.sector}</div>
+            {p.reason && <div className="wa-ov-reason">{p.reason}</div>}
+          </div>
+        ))}
+        {o.cashPct > 0 && (
+          <div className="wa-ov-row">
+            <div className="wa-ov-top">
+              <span className="wa-ov-ticker">CASH</span>
+              <span className="wa-ov-name">Cash reserve</span>
+              <span className="wa-ov-weight">{o.cashPct}%</span>
+            </div>
+            <div className="wa-poll-bar">
+              <div className="wa-poll-fill cash" style={{ width: `${(o.cashPct / max) * 100}%` }} />
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="wa-ov-total">
+        <span>Total</span>
+        <span>{total}%</span>
+      </div>
+
+      <button className="wa-ov-export" onClick={exportPdf} disabled={busy}>
+        {busy ? 'Preparing PDF…' : 'Export as PDF'}
+      </button>
+      {err && <div className="wa-ov-err">{err}</div>}
       <span className="wa-time">{msg.time}</span>
     </div>
   )
@@ -170,9 +244,15 @@ export default function ChatOverlay({ order, onClose }) {
       <div className="wa-chat">
         <div className="wa-daydivider"><span>Board convened · {order.source}</span></div>
         {visible.map((m, i) =>
-          m.poll ? <Poll key={i} msg={m} /> : <Bubble key={i} msg={m} chat={msgs} />
+          m.poll ? (
+            <Poll key={i} msg={m} />
+          ) : m.overview ? (
+            <PortfolioOverview key={i} msg={m} />
+          ) : (
+            <Bubble key={i} msg={m} chat={msgs} />
+          )
         )}
-        {typingNext && !typingNext.poll && <TypingBubble msg={typingNext} />}
+        {typingNext && !typingNext.poll && !typingNext.overview && <TypingBubble msg={typingNext} />}
         {shown >= msgs.length && (
           <div className="wa-endnote">
             Decisions are made by autonomous agents. Not investment advice.

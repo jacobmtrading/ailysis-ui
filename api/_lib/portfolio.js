@@ -19,7 +19,8 @@ function chatTime(offsetMin = 0) {
 }
 
 // Turn board output into the chat shape the UI renders (WhatsApp-style).
-export function assembleChat({ id, ticker, name, source, board, question, decisionLine }) {
+// `overview` (portfolio builder) turns the closing message into a structured summary card.
+export function assembleChat({ id, ticker, name, source, board, question, decisionLine, overview }) {
   const n = board.messages.length
   const messages = board.messages.map((m, i) => ({
     from: m.from,
@@ -34,7 +35,12 @@ export function assembleChat({ id, ticker, name, source, board, question, decisi
     time: chatTime(1),
     votes: Object.entries(board.votes).map(([agent, vote]) => ({ agent, vote })),
   })
-  messages.push({ from: 'mod', text: decisionLine || board.closing || 'Decision recorded.', time: chatTime(0) })
+  messages.push({
+    from: 'mod',
+    text: decisionLine || board.closing || 'Decision recorded.',
+    time: chatTime(0),
+    ...(overview ? { overview } : {}),
+  })
   return { id, ticker, name, source, time: Date.now(), messages }
 }
 

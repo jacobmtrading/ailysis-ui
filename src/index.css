@@ -1014,6 +1014,42 @@ body {
 .wa-poll-fill { height: 100%; border-radius: 5px; }
 .wa-poll-fill.yes { background: var(--wa-teal); }
 .wa-poll-fill.no { background: var(--red); }
+/* Portfolio builder overview (closing card) */
+.wa-overview { width: 94%; }
+.wa-ov-summary { color: var(--wa-text); font-size: 14px; margin-bottom: 6px; }
+.wa-ov-meta { color: var(--wa-muted); font-size: 12px; margin-bottom: 10px; }
+.wa-ov-list { display: flex; flex-direction: column; }
+.wa-ov-row { padding: 9px 0; border-top: 1px solid var(--wa-divider); }
+.wa-ov-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+.wa-ov-ticker { font-weight: 700; color: var(--wa-text); font-size: 14px; }
+.wa-ov-name { flex: 1 1 auto; min-width: 0; color: var(--wa-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wa-ov-weight { font-weight: 700; color: var(--wa-text); font-variant-numeric: tabular-nums; }
+.wa-ov-row .wa-poll-bar { height: 6px; }
+.wa-poll-fill.cash { background: var(--wa-muted); }
+.wa-ov-sector { color: var(--wa-teal); font-size: 11.5px; font-weight: 600; margin-top: 5px; }
+.wa-ov-reason { color: var(--wa-text); opacity: 0.85; font-size: 13px; margin-top: 2px; }
+.wa-ov-total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 9px;
+  border-top: 1px solid var(--wa-muted);
+  font-weight: 700;
+  color: var(--wa-text);
+}
+.wa-ov-export {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--wa-teal);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.wa-ov-export:disabled { opacity: 0.6; cursor: default; }
+.wa-ov-err { color: var(--red); font-size: 12px; margin-top: 6px; }
 .wa-poll-voters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .wa-voter { display: flex; align-items: center; gap: 2px; font-size: 11px; }
 .wa-voter-dot {

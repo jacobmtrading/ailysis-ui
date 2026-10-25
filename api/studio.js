@@ -83,8 +83,8 @@ export default async function handler(req, res) {
       }
       const universe = llmUniverse({ sectors: spec.sectors })
       const board = await runBuild({ spec, universe })
-      const lines = board.portfolio.map((p) => `• ${p.ticker} ${p.weightPct}% — ${p.reason}`).join('\n')
-      const cashLeft = 100 - board.portfolio.reduce((x, p) => x + p.weightPct, 0)
+      const cashPct = Math.max(0, 100 - board.portfolio.reduce((x, p) => x + p.weightPct, 0))
+      const yes = Object.values(board.votes).filter((v) => v === 'yes').length
       chat = assembleChat({
         id: `u-${sess.username}-${Date.now()}`,
         ticker: 'BUILD',
@@ -92,7 +92,18 @@ export default async function handler(req, res) {
         source: `Spec: ${spec.timeSpan} · ${spec.volatility} volatility · max ${spec.maxPosPct}%/position`,
         board,
         question: 'Approve this portfolio?',
-        decisionLine: `${board.closing || ''}\n\n📋 Proposed portfolio:\n${lines}${cashLeft > 0 ? `\n• Cash ${cashLeft}%` : ''}`,
+        decisionLine: board.closing || 'Here is the proposed portfolio.',
+        overview: {
+          summary: board.closing,
+          vote: `${yes}-${5 - yes}`,
+          spec,
+          positions: board.portfolio.map((p) => {
+            const e = byTicker[p.ticker]
+            return { ...p, name: e?.n || p.ticker, sector: e?.ind || '', type: e?.type || 'stock' }
+          }),
+          cashPct,
+          createdAt: Date.now(),
+        },
       })
       chat.positions = board.portfolio.map((p) => ({ ticker: p.ticker, weightPct: p.weightPct }))
     }

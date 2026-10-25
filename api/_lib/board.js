@@ -162,8 +162,8 @@ Respond with ONLY this JSON:
 {
   "messages": [{"from": "max", "text": "..."}, ...],
   "votes": {"max": "yes|no", "valeria": "yes|no", "kian": "yes|no", "rayan": "yes|no", "emilia": "yes|no"},
-  "closing": "one short moderator line",
-  "portfolio": [{"ticker": "XYZ", "weightPct": 20, "reason": "a few words"}]
+  "closing": "the moderator's 1-2 sentence summary of the portfolio's overall shape and why it fits the client's spec",
+  "portfolio": [{"ticker": "XYZ", "weightPct": 20, "reason": "one short sentence on the role this position plays"}]
 }`
 
 export async function runBuild({ spec, universe }) {
@@ -176,7 +176,7 @@ export async function runBuild({ spec, universe }) {
     .map((p) => ({
       ticker: p.ticker,
       weightPct: Math.max(1, Math.min(Number(spec.maxPosPct) || 100, Math.round(Number(p.weightPct) || 0))),
-      reason: String(p.reason || '').slice(0, 120),
+      reason: String(p.reason || '').slice(0, 160),
     }))
   const total = portfolio.reduce((s, p) => s + p.weightPct, 0)
   if (total > 100) portfolio = portfolio.map((p) => ({ ...p, weightPct: Math.round((p.weightPct / total) * 100) }))
