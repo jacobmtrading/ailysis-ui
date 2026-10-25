@@ -1706,6 +1706,18 @@ body {
 .lab-chip b { color: var(--muted); font-weight: 600; margin-left: 3px; }
 .lab-chip.big { font-size: 16px; }
 .lab-summary-name { color: var(--muted); font-size: 14px; }
+.lab-unpick {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--chip);
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+.lab-unpick:hover { color: inherit; }
 .lab-total { font-size: 12px; color: var(--muted); }
 .lab-total.ok { color: var(--green); }
 .lab-edit { margin-top: 8px; }

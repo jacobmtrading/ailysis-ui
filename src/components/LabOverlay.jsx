@@ -188,7 +188,7 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
     if (mode === 'stock' ? !lab.stock : !positions.length) setStage('enter')
   }
 
-  // "Change": a brand-new Lab — the saved subject and every tool's inputs are wiped.
+  // "New": a brand-new Lab — the saved subject and every tool's inputs are wiped.
   const startOver = () => {
     onLab(freshLab())
     setQuery('')
@@ -503,13 +503,25 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
                 </div>
                 {lab.mode === 'stock' ? (
                   <>
-                    {lab.stock && (
+                    {/* Once picked, the stock replaces the search; × clears it to search again. */}
+                    {lab.stock ? (
                       <div className="lab-summary">
                         <span className="lab-chip big">{lab.stock.t}</span>
                         <span className="lab-summary-name">{lab.stock.unlisted ? 'Looked up live' : lab.stock.n}</span>
+                        <button
+                          className="lab-unpick"
+                          aria-label={`Remove ${lab.stock.t}`}
+                          onClick={() => {
+                            onLab({ ...lab, stock: null })
+                            setAnalyzePick(null)
+                          }}
+                        >
+                          ×
+                        </button>
                       </div>
+                    ) : (
+                      stockSearch
                     )}
-                    {stockSearch}
                   </>
                 ) : (
                   <>
@@ -536,7 +548,7 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
                     Edit
                   </button>
                   <button className="menu-linkbtn" onClick={startOver}>
-                    Change
+                    New
                   </button>
                 </div>
                 {subjectSummary}
