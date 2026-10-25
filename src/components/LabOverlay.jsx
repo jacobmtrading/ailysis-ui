@@ -534,7 +534,7 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
                   </>
                 )}
                 <button className="menu-primary lab-save" disabled={!subject} onClick={() => setStage('tools')}>
-                  {subject ? 'Save' : lab.mode === 'stock' ? 'Pick a stock to save' : 'Add a position with a weight to save'}
+                  {subject ? 'Continue' :lab.mode === 'stock' ? 'Pick a stock to save' : 'Add a position with a weight to save'}
                 </button>
                 <div className="lab-remember">Saved on this device — you won't have to type it again.</div>
               </section>
