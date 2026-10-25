@@ -172,10 +172,13 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
     run(fn)
   }
 
+  // Only the builder works without a subject; any other tool picked before
+  // one is entered goes back to the stock-vs-portfolio question first.
   const pickTab = (t) => {
     setTab(t)
     setUpsell(null)
     setErr(null)
+    if (t !== 'build' && !subject) setStage('choose')
   }
 
   // Premium insight tools (risk map / SWOT / stress test) for the Lab's subject.
@@ -549,26 +552,18 @@ export default function LabOverlay({ open, user, initialTab, lab, onLab, onOpenC
               </section>
             )}
 
-            {stage === 'tools' && (
+            {stage === 'tools' && subject && (
               <section className="lab-card lab-subject">
                 <div className="lab-subject-top">
-                  <div className="menu-heading">{!subject ? 'Nothing entered yet' : lab.mode === 'stock' ? 'Your stock' : 'Your portfolio'}</div>
-                  {subject ? (
-                    <>
-                      <button className="menu-linkbtn" onClick={() => setStage('enter')}>
-                        Edit
-                      </button>
-                      <button className="menu-linkbtn" onClick={startOver}>
-                        New
-                      </button>
-                    </>
-                  ) : (
-                    <button className="menu-linkbtn" onClick={() => setStage('choose')}>
-                      Enter
-                    </button>
-                  )}
+                  <div className="menu-heading">{lab.mode === 'stock' ? 'Your stock' : 'Your portfolio'}</div>
+                  <button className="menu-linkbtn" onClick={() => setStage('enter')}>
+                    Edit
+                  </button>
+                  <button className="menu-linkbtn" onClick={startOver}>
+                    New
+                  </button>
                 </div>
-                {subject ? subjectSummary : <div className="menu-note">The builder doesn't need one — the other tools run on a stock or portfolio you enter.</div>}
+                {subjectSummary}
               </section>
             )}
 
