@@ -1642,6 +1642,31 @@ body {
 .stress-own .stress-main { flex: 1; }
 .stress-own-input { margin: 6px 0 0; font-size: 13px; resize: vertical; background: var(--bg); }
 .stress-result { margin-top: 18px; }
+/* Simulating: the loader alone, centred in the visible area. */
+.stress-busy { min-height: 100%; display: flex; align-items: center; justify-content: center; padding-top: 0; }
+.ins-body:has(.stress-busy) { overflow: hidden; display: flex; flex-direction: column; }
+.ins-body:has(.stress-busy) .stress-busy { flex: 1; }
+.stress-picked {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--chip);
+}
+.stress-picked .stress-main { flex: 1; }
+.stress-picked .stress-main small { text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; }
+.stress-again {
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
 .swarm-card {
   background: var(--chip);
   border-radius: 12px;

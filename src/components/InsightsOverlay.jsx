@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as api from '../account'
 import LoadingFun from './LoadingFun'
 import { SCENARIOS } from '../../api/_lib/scenarios.js'
@@ -296,10 +296,39 @@ function ImpactChart({ impacts }) {
   )
 }
 
-function StressView({ items, busy, err, data, scenarioId, custom, onCustom, onPick, onRun }) {
+function StressView({ items, busy, err, data, scenarioId, custom, onCustom, onPick, onRun, onBack }) {
   const cats = [...new Set(SCENARIOS.map((s) => s.cat))]
   const ownOn = scenarioId === 'custom'
   const ready = ownOn ? custom.trim().length >= 10 : !!scenarioId
+
+  // While simulating, the picker steps aside: just the loader, centred on screen.
+  if (busy) {
+    return (
+      <div className="stress-view stress-busy">
+        <LoadingFun label="Simulating how the world reacts…" />
+      </div>
+    )
+  }
+
+  // The result replaces the picker so it opens at the top of the screen.
+  if (data) {
+    const picked = ownOn ? custom.trim() : SCENARIOS.find((s) => s.id === scenarioId)?.title
+    return (
+      <div className="stress-view">
+        <div className="stress-picked">
+          <span className="stress-main">
+            <small>Scenario</small>
+            <b>{picked}</b>
+          </span>
+          <button className="stress-again" onClick={onBack}>
+            Try another
+          </button>
+        </div>
+        <StressResult items={items} data={data} />
+      </div>
+    )
+  }
+
   return (
     <div className="stress-view">
       <div className="menu-heading">Your own scenario</div>
@@ -332,54 +361,55 @@ function StressView({ items, busy, err, data, scenarioId, custom, onCustom, onPi
           ))}
         </div>
       ))}
-      <button className="menu-primary dark" disabled={!ready || busy} onClick={onRun}>
-        {busy ? 'Simulating world reaction…' : `Stress test ${items.length > 1 ? 'my portfolio' : items[0].ticker}`}
+      <button className="menu-primary dark" disabled={!ready} onClick={onRun}>
+        Stress test {items.length > 1 ? 'my portfolio' : items[0].ticker}
       </button>
-      {busy && <LoadingFun label="Simulating how the world reacts…" />}
       {err && <div className="menu-msg err">{err}</div>}
+    </div>
+  )
+}
 
-      {data && !busy && (
-        <div className="stress-result">
-          <div className="menu-heading">Step 1 · Swarm reaction</div>
-          {data.swarm.map((s) => (
-            <div key={s.group} className="swarm-card">
-              <div className="swarm-group">{s.group}</div>
-              <div className="swarm-text">{s.reaction}</div>
-            </div>
-          ))}
-
-          <div className="menu-heading">Step 2 · Impact on {items.length > 1 ? 'your positions' : items[0].ticker}</div>
-          <ImpactChart impacts={data.impacts} />
-          <div className="impact-notes">
-            {data.impacts.map((im) => (
-              <div key={im.ticker} className="impact-noterow">
-                <b>{im.ticker}</b>
-                <span>{im.note}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="stress-cols">
-            <div>
-              <div className="menu-heading">Risks</div>
-              <ul className="stress-list risk">
-                {data.risks.map((r, i) => (
-                  <li key={i}>{r}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <div className="menu-heading">Opportunities</div>
-              <ul className="stress-list opp">
-                {data.opportunities.map((o, i) => (
-                  <li key={i}>{o}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          {data.summary && <div className="menu-note stress-summary">{data.summary}</div>}
+function StressResult({ items, data }) {
+  return (
+    <div className="stress-result">
+      <div className="menu-heading">Step 1 · Swarm reaction</div>
+      {data.swarm.map((s) => (
+        <div key={s.group} className="swarm-card">
+          <div className="swarm-group">{s.group}</div>
+          <div className="swarm-text">{s.reaction}</div>
         </div>
-      )}
+      ))}
+
+      <div className="menu-heading">Step 2 · Impact on {items.length > 1 ? 'your positions' : items[0].ticker}</div>
+      <ImpactChart impacts={data.impacts} />
+      <div className="impact-notes">
+        {data.impacts.map((im) => (
+          <div key={im.ticker} className="impact-noterow">
+            <b>{im.ticker}</b>
+            <span>{im.note}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="stress-cols">
+        <div>
+          <div className="menu-heading">Risks</div>
+          <ul className="stress-list risk">
+            {data.risks.map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <div className="menu-heading">Opportunities</div>
+          <ul className="stress-list opp">
+            {data.opportunities.map((o, i) => (
+              <li key={i}>{o}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      {data.summary && <div className="menu-note stress-summary">{data.summary}</div>}
     </div>
   )
 }
@@ -404,6 +434,7 @@ export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFr
   const [selTicker, setSelTicker] = useState(null)
   // Proposals added this visit — the Lab portfolio (when there is one) is the source of truth.
   const [added, setAdded] = useState([])
+  const bodyRef = useRef(null)
 
   // New subject → start fresh.
   useEffect(() => {
@@ -444,13 +475,21 @@ export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFr
   if (!ctx) return null
 
   const runStress = () => {
+    bodyRef.current?.scrollTo(0, 0)
     setBusy(true)
     setErr(null)
     api
       .insightsStress(items, scenarioId, scenarioId === 'custom' ? customScenario : undefined)
       .then(setStressData)
       .catch((e) => setErr(e.message))
-      .finally(() => setBusy(false))
+      .finally(() => {
+        setBusy(false)
+        bodyRef.current?.scrollTo(0, 0)
+      })
+  }
+  const backToScenarios = () => {
+    setStressData(null)
+    bodyRef.current?.scrollTo(0, 0)
   }
 
   const inLab = (t) => (lab ? lab.rows.some((r) => r.ticker === t) : added.includes(t))
@@ -494,7 +533,7 @@ export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFr
         </div>
       </header>
 
-      <div className="ins-body">
+      <div className="ins-body" ref={bodyRef}>
         {locked && (
           <div className="ins-fold ins-locked">
             <div className="menu-note">
@@ -599,7 +638,7 @@ export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFr
         )}
 
         {!locked && view === 'stress' && (
-          <StressView items={items} busy={busy} err={err} data={stressData} scenarioId={scenarioId} custom={customScenario} onCustom={setCustomScenario} onPick={setScenarioId} onRun={runStress} />
+          <StressView items={items} busy={busy} err={err} data={stressData} scenarioId={scenarioId} custom={customScenario} onCustom={setCustomScenario} onPick={setScenarioId} onRun={runStress} onBack={backToScenarios} />
         )}
       </div>
     </>
