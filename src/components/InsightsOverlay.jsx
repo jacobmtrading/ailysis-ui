@@ -320,11 +320,11 @@ function StressView({ items, busy, err, data, scenarioId, custom, onCustom, onPi
             <small>Scenario</small>
             <b>{picked}</b>
           </span>
-          <button className="stress-again" onClick={onBack}>
-            Try another
-          </button>
         </div>
         <StressResult items={items} data={data} />
+        <button className="menu-primary dark stress-again" onClick={onBack}>
+          Try another scenario
+        </button>
       </div>
     )
   }
@@ -424,6 +424,8 @@ const VIEWS = [
 export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFromLab, onUpgrade, onClose }) {
   const [view, setView] = useState('map')
   const [busy, setBusy] = useState(false)
+  // Separate from `busy` so a map/SWOT load never shows the stress loader.
+  const [stressBusy, setStressBusy] = useState(false)
   const [err, setErr] = useState(null)
   const [mapData, setMapData] = useState(null)
   const [swotData, setSwotData] = useState(null)
@@ -476,14 +478,14 @@ export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFr
 
   const runStress = () => {
     bodyRef.current?.scrollTo(0, 0)
-    setBusy(true)
+    setStressBusy(true)
     setErr(null)
     api
       .insightsStress(items, scenarioId, scenarioId === 'custom' ? customScenario : undefined)
       .then(setStressData)
       .catch((e) => setErr(e.message))
       .finally(() => {
-        setBusy(false)
+        setStressBusy(false)
         bodyRef.current?.scrollTo(0, 0)
       })
   }
@@ -638,7 +640,7 @@ export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFr
         )}
 
         {!locked && view === 'stress' && (
-          <StressView items={items} busy={busy} err={err} data={stressData} scenarioId={scenarioId} custom={customScenario} onCustom={setCustomScenario} onPick={setScenarioId} onRun={runStress} onBack={backToScenarios} />
+          <StressView items={items} busy={stressBusy} err={err} data={stressData} scenarioId={scenarioId} custom={customScenario} onCustom={setCustomScenario} onPick={setScenarioId} onRun={runStress} onBack={backToScenarios} />
         )}
       </div>
     </>
