@@ -296,11 +296,28 @@ function ImpactChart({ impacts }) {
   )
 }
 
-function StressView({ items, busy, err, data, scenarioId, onPick, onRun }) {
+function StressView({ items, busy, err, data, scenarioId, custom, onCustom, onPick, onRun }) {
   const cats = [...new Set(SCENARIOS.map((s) => s.cat))]
+  const ownOn = scenarioId === 'custom'
+  const ready = ownOn ? custom.trim().length >= 10 : !!scenarioId
   return (
     <div className="stress-view">
-      <div className="menu-heading">Pick a scenario from the library</div>
+      <div className="menu-heading">Your own scenario</div>
+      <div className={`stress-row stress-own ${ownOn ? 'on' : ''}`} onClick={() => onPick('custom')}>
+        <span className="stress-main">
+          <b>Describe any event</b>
+          <textarea
+            className="menu-input stress-own-input"
+            rows={3}
+            maxLength={600}
+            placeholder="e.g. Oil drops to $40 as OPEC+ breaks up and floods the market"
+            value={custom}
+            onFocus={() => onPick('custom')}
+            onChange={(e) => onCustom(e.target.value)}
+          />
+        </span>
+      </div>
+      <div className="menu-heading">Or pick a scenario from the library</div>
       <div className="menu-note">Hypothetical simulations based on the current state of the world — not investment advice.</div>
       {cats.map((cat) => (
         <div key={cat}>
@@ -315,7 +332,7 @@ function StressView({ items, busy, err, data, scenarioId, onPick, onRun }) {
           ))}
         </div>
       ))}
-      <button className="menu-primary dark" disabled={!scenarioId || busy} onClick={onRun}>
+      <button className="menu-primary dark" disabled={!ready || busy} onClick={onRun}>
         {busy ? 'Simulating world reaction…' : `Stress test ${items.length > 1 ? 'my portfolio' : items[0].ticker}`}
       </button>
       {busy && <LoadingFun label="Simulating how the world reacts…" />}
@@ -382,6 +399,7 @@ export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFr
   const [swotData, setSwotData] = useState(null)
   const [stressData, setStressData] = useState(null)
   const [scenarioId, setScenarioId] = useState(null)
+  const [customScenario, setCustomScenario] = useState('')
   const [showProposals, setShowProposals] = useState(false)
   const [selTicker, setSelTicker] = useState(null)
   // Proposals added this visit — the Lab portfolio (when there is one) is the source of truth.
@@ -394,6 +412,7 @@ export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFr
     setSwotData(null)
     setStressData(null)
     setScenarioId(null)
+    setCustomScenario('')
     setShowProposals(false)
     setSelTicker(null)
     setAdded([])
@@ -428,7 +447,7 @@ export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFr
     setBusy(true)
     setErr(null)
     api
-      .insightsStress(items, scenarioId)
+      .insightsStress(items, scenarioId, scenarioId === 'custom' ? customScenario : undefined)
       .then(setStressData)
       .catch((e) => setErr(e.message))
       .finally(() => setBusy(false))
@@ -580,7 +599,7 @@ export default function InsightsOverlay({ ctx, user, lab, onAddToLab, onRemoveFr
         )}
 
         {!locked && view === 'stress' && (
-          <StressView items={items} busy={busy} err={err} data={stressData} scenarioId={scenarioId} onPick={setScenarioId} onRun={runStress} />
+          <StressView items={items} busy={busy} err={err} data={stressData} scenarioId={scenarioId} custom={customScenario} onCustom={setCustomScenario} onPick={setScenarioId} onRun={runStress} />
         )}
       </div>
     </>

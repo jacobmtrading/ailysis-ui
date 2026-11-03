@@ -1,7 +1,7 @@
 // Premium insight tools (auth required, tier-gated, daily-capped):
 // POST /api/insights { action: 'map',    items }              — premium+ (1 item) / tailormade (portfolio)
 // POST /api/insights { action: 'swot',   items, label }       — same gating
-// POST /api/insights { action: 'stress', items, scenarioId }  — same gating
+// POST /api/insights { action: 'stress', items, scenarioId, customScenario? }  — same gating
 import { sessionUser, loadUserData, saveUserData, TIER_RANK } from './_lib/auth.js'
 import { runMap, runSwot, runStress } from './_lib/insights.js'
 import { scenarioById } from './_lib/scenarios.js'
@@ -78,7 +78,10 @@ export default async function handler(req, res) {
     }
 
     if (action === 'stress') {
-      const scenario = scenarioById[String(req.body.scenarioId || '')]
+      const id = String(req.body.scenarioId || '')
+      const own = String(req.body.customScenario || '').trim().slice(0, 600)
+      if (id === 'custom' && own.length < 10) return json(res, 400, { error: 'Describe your scenario in a sentence or two' })
+      const scenario = id === 'custom' ? { id, title: 'Custom scenario', desc: own } : scenarioById[id]
       if (!scenario) return json(res, 400, { error: 'Pick a scenario from the library' })
       out = await runStress({ scenario, items })
       out.scenarioId = scenario.id

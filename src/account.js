@@ -45,8 +45,8 @@ export const evaluatePortfolio = (positions) =>
 export const insightsMap = (items) => call('/api/insights', { method: 'POST', body: { action: 'map', items } })
 export const insightsSwot = (items, label) =>
   call('/api/insights', { method: 'POST', body: { action: 'swot', items, label } })
-export const insightsStress = (items, scenarioId) =>
-  call('/api/insights', { method: 'POST', body: { action: 'stress', items, scenarioId } })
+export const insightsStress = (items, scenarioId, customScenario) =>
+  call('/api/insights', { method: 'POST', body: { action: 'stress', items, scenarioId, customScenario } })
 
 // Local activity log — every feature click lands in "My sessions" with a note
 // of what it was, kept client-side so insight-tool opens are tracked too.

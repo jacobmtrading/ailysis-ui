@@ -1,9 +1,25 @@
 // Stress-test scenario library, based on the current state of the world.
 // Kept in code (like the universe) so the client can render the picker with
 // zero API calls and the server can validate ids. cat = geopolitical |
-// economic | energy | tech | society. tone = shock | relief.
+// economic | energy | tech | society | politics. tone = shock | relief.
 
 export const SCENARIOS = [
+  {
+    id: 'midterms-dem',
+    emoji: '🔵',
+    cat: 'politics',
+    tone: 'shock',
+    title: 'Midterms: Democrats win Congress',
+    desc: 'Democrats take the House (and possibly the Senate) — divided government means gridlock, investigations, a stalled tax and deregulation agenda, and harder fights over the debt ceiling and tariffs.',
+  },
+  {
+    id: 'midterms-gop',
+    emoji: '🔴',
+    cat: 'politics',
+    tone: 'shock',
+    title: 'Midterms: Republicans hold Congress',
+    desc: 'Republicans keep both chambers — unified government extends tax cuts, deregulation and energy permitting, while tariff policy and deficit spending stay unchecked.',
+  },
   {
     id: 'taiwan-conflict',
     emoji: '🇹🇼',

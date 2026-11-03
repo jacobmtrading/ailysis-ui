@@ -1638,6 +1638,9 @@ body {
 .stress-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .stress-main b { font-size: 14px; }
 .stress-main small { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.stress-own { cursor: text; }
+.stress-own .stress-main { flex: 1; }
+.stress-own-input { margin: 6px 0 0; font-size: 13px; resize: vertical; background: var(--bg); }
 .stress-result { margin-top: 18px; }
 .swarm-card {
   background: var(--chip);
